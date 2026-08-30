@@ -634,3 +634,27 @@ commands produced the evidence, and every known limitation.
 | Docker Desktop requires host reboot | Issue 4, and every test needing Postgres | User |
 | `gh auth login` is interactive (browser) | Publishing this backlog to GitHub | User |
 | Git identity is a placeholder (`TestVasja Agent <agent@testvesja.local>`) | Commit attribution on GitHub | User — confirm intended |
+
+## Resume here — state as of 2026-08-30, before host reboot
+
+**Branch:** `phase-1/scaffold-baseline` · **Last commit:** `6c6e3f2` · working tree clean.
+
+**Done:** issues 1 and 2 (backend scaffold, Alembic harness). Verified with
+`uv run pytest` (2 passed), `uv run pyright` (0 errors, strict), `ruff check`/`format --check`
+(clean), `alembic upgrade head --sql` (PostgresqlImpl, transactional DDL).
+
+**Environment already installed:** `uv` 0.12.7, `pnpm` 11.24.0, `gh` 2.98.0, Docker Desktop
+(pending reboot). Provenance of `uv`/`pnpm`/`gh`/`httpx2` was audited on 2026-08-30; `uv` has
+neither an Authenticode signature nor a PEP 740 attestation, which is the weakest link.
+`fastapi[standard]` pulls `sentry-sdk` transitively — inert without a DSN, but unaudited.
+
+**Not done:** issues 3 (Nuxt 4 frontend scaffold), 4 (docker-compose Postgres), 5 (CI + README).
+No GitHub repository or remote exists yet, so none of these 26 issues has been published.
+
+**After reboot, in this order:**
+1. Confirm the engine is up: `docker version` — the server section must respond, not just the client.
+2. `gh auth login` in a **new** terminal (`gh` is not on the PATH of shells opened before install).
+3. Decide the git identity question in the table above before any push.
+4. Then either publish the backlog as milestones/issues, or continue with issue 3 — issue 3
+   requires auditing the npm dependency tree (Nuxt, PrimeVue, Tailwind, TanStack Query, Pinia,
+   Zod) *before* installing, per the standing rule.
