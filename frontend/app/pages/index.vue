@@ -41,9 +41,12 @@ async function onLogout() {
       </strong>
     </p>
 
-    <div>
+    <div class="flex gap-4">
       <NuxtLink data-testid="nav-products" to="/products" class="text-sm underline">
         Товари →
+      </NuxtLink>
+      <NuxtLink data-testid="nav-receipts" to="/goods-receipts" class="text-sm underline">
+        Надходження →
       </NuxtLink>
     </div>
 

@@ -22,6 +22,16 @@ export type ProductPage = Schemas['ProductPage']
 export type ProductCreate = Schemas['ProductCreate']
 export type ProductUpdate = Schemas['ProductUpdate']
 
+export type CounterpartyPublic = Schemas['CounterpartyPublic']
+
+export type GoodsReceiptSummary = Schemas['GoodsReceiptSummary']
+export type GoodsReceiptPublic = Schemas['GoodsReceiptPublic']
+export type GoodsReceiptPage = Schemas['GoodsReceiptPage']
+export type GoodsReceiptCreate = Schemas['GoodsReceiptCreate']
+export type GoodsReceiptUpdate = Schemas['GoodsReceiptUpdate']
+export type GoodsReceiptLineInput = Schemas['GoodsReceiptLineInput']
+export type GoodsReceiptLinePublic = Schemas['GoodsReceiptLinePublic']
+
 /** The single envelope every 401/403/404/409/422 uses. */
 export type ApiErrorResponse = Schemas['ErrorResponse']
 export type ApiFieldError = Schemas['FieldError']

@@ -922,6 +922,8 @@ product returns 422, and a follow-up `GET` shows the original line and version u
 
 ### Issue 17 — `P4: Goods receipt draft UI`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Scope.**
 - `/goods-receipts` list showing status, supplier, created by, created at.
 - Create/edit view: supplier picker, line editor (product search, quantity, purchase price),
@@ -935,6 +937,39 @@ product returns 422, and a follow-up `GET` shows the original line and version u
 **Modules.** `frontend/app/pages/goods-receipts/*`, `frontend/app/components/ReceiptLineEditor.vue`.
 
 **Tests.** Playwright: create draft, add three lines, reload, verify persistence.
+
+**The running total is computed in whole kopiykas.** The server owns every saved total, but the
+browser still has to show one *while the user is typing*, before anything is saved — and
+JavaScript has no decimal type, so `0.1 + 0.2 !== 0.3`. `app/utils/money.ts` parses `"12.34"`
+into `1234`, multiplies by an integer quantity and sums in integers, so the figure on screen is
+the one the server confirms rather than one that drifts by a kopiyka next to real money.
+
+**A posted document has no editing affordances at all** — no inputs, no save button, no supplier
+picker; the values are shown read-only rather than hidden. The server refuses the edit too
+(409 `receipt_not_draft`), but offering a control that cannot work is its own kind of bug.
+
+**Posting is faked by a script, never by an endpoint.** Issue 17's second acceptance criterion
+needs a posted document a phase before the posting command exists.
+`backend/scripts/mark_receipt_posted.py` flips the status for the E2E suite, and lives in
+`scripts/` precisely so it cannot be reached over HTTP: a route that posts a document on request
+is a backdoor around the entire posting transaction, and guarding it with a debug flag would only
+mean the backdoor ships with the flag.
+
+**A test-harness finding worth keeping.** PrimeVue leaves the markup of previously opened
+`Select` overlays in the DOM, so a page-wide `getByRole('option')` matches every list at once as
+soon as a second line exists — the suite failed with a strict-mode violation naming two identical
+options. Option lookups are now scoped to the overlay that is actually visible.
+
+**Scope note.** `ReceiptSupplierPicker.vue` also creates a supplier inline. Without it the flow
+dead-ends the first time an organization has no counterparties, and the PRD scopes supplier
+creation as a name and nothing else.
+
+**Verification (2026-08-30).** `pnpm lint`, `pnpm typecheck` and `pnpm build` clean.
+Playwright: **5 passed** for this issue, **20 passed** across the whole E2E suite.
+The two acceptance criteria are tested as written — three lines with a running total of `42.60`
+survive a genuine page reload with quantities intact, and a posted document renders with
+`receipt-save`, `line-add` and the supplier picker all absent while the total still reads
+`40.00`.
 
 ---
 
@@ -1130,7 +1165,7 @@ commands produced the evidence, and every known limitation.
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
-| 4 | Goods Receipt Draft & Edit | 14–17 | 3 of 4 done |
+| 4 | Goods Receipt Draft & Edit | 14–17 | ✅ 4 of 4 done |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
 | 6 | Stock Balance Query | 23–24 | Not started |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |
