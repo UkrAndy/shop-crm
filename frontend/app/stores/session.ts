@@ -36,7 +36,10 @@ export const useSessionStore = defineStore('session', () => {
 
   function apply(session: SessionPublic) {
     user.value = session.user
-    activeOrganizationId.value = session.active_organization_id
+    // The contract makes this optional — it has a default server-side — so an
+    // absent field and an explicit null both mean "nothing selected". The
+    // hand-written type this replaced claimed it was always present.
+    activeOrganizationId.value = session.active_organization_id ?? null
   }
 
   async function loadOrganizations() {

@@ -82,6 +82,14 @@ jobs:
       - name: Fail on model/migration drift
         run: uv run alembic check
 
+      # The committed contract is what the frontend's types are generated from.
+      # If it drifts, the client narrows on a shape the API no longer sends —
+      # the same class of bug as a model without a migration.
+      - name: Fail on API contract drift
+        run: |
+          uv run python scripts/export_openapi.py openapi.json
+          git diff --exit-code -- openapi.json
+
   frontend:
     name: Frontend — lint, types, build
     runs-on: ubuntu-latest
@@ -159,6 +167,12 @@ jobs:
 
       - name: Install frontend
         run: pnpm install --frozen-lockfile
+
+      # This job is the only one with both toolchains, so it is where the
+      # generated TypeScript can be regenerated and diffed against what was
+      # committed.
+      - name: Fail on generated-client drift
+        run: pnpm --filter @testvasja/frontend run api:check
 
       # Only Chromium: three engines would treble the runtime to re-test the
       # same server-side behaviour. Cross-browser rendering is a separate concern

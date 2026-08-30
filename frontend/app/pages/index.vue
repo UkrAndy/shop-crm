@@ -41,8 +41,14 @@ async function onLogout() {
       </strong>
     </p>
 
+    <div>
+      <NuxtLink data-testid="nav-products" to="/products" class="text-sm underline">
+        Товари →
+      </NuxtLink>
+    </div>
+
     <p class="text-xs text-gray-500">
-      Phase 2. Rendered on:
+      Phase 3. Rendered on:
       <span data-testid="render-origin">{{ renderedOn }}</span>
     </p>
 

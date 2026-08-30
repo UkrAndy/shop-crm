@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "test:e2e": "playwright test",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "api:export": "uv run --directory ../backend python scripts/export_openapi.py ../backend/openapi.json",
+    "api:generate": "pnpm run api:export && openapi-typescript ../backend/openapi.json -o shared/api/schema.d.ts",
+    "api:check": "pnpm run api:generate && git diff --exit-code -- shared/api/schema.d.ts ../backend/openapi.json"
   },
   "dependencies": {
     "@primeuix/themes": "^1.2.5",
@@ -29,6 +32,7 @@
     "@primevue/nuxt-module": "^4.5.5",
     "@tailwindcss/vite": "^4.3.3",
     "eslint": "^10.9.1",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
     "vue-tsc": "^3.3.11"

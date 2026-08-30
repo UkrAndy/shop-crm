@@ -655,6 +655,37 @@ have narrowed on it. Fixed at the application level (`FastAPI(responses=document
 
 **Out of scope.** Inline table editing, column customization.
 
+**Status:** ✅ Done (2026-08-30)
+
+**Generated types, not a generated SDK.** `openapi-typescript` (dev dependency only, zero
+runtime bytes) emits `frontend/shared/api/schema.d.ts`; `app/types/api.ts` is now just named
+aliases over it and adds no field of its own. `openapi-fetch` and `@hey-api/openapi-ts` were
+both considered and rejected: each replaces the transport, and ours already carries the SSR
+cookie forwarding that Issue 8 had to get right. Types give the contract enforcement without
+re-litigating the part that works.
+
+**Generation is reproducible without a running server.** `backend/scripts/export_openapi.py`
+writes the document with sorted keys, so a regenerated file differs only when the contract truly
+changed — which is what lets CI diff it. Two guards, each in the job that can afford it: the
+backend job re-exports `openapi.json` and fails on any diff; the E2E job, the only one with both
+toolchains, runs the full `api:check`. A contract that drifts from the code now fails the build
+exactly the way a model without a migration does.
+
+**The generator immediately earned its place.** Typecheck failed on the first run:
+`active_organization_id` is *optional* in the contract — it has a server-side default — while
+the hand-written type had claimed it was always present. The store had been carrying a lie that
+nothing could have caught by inspection.
+
+**The 409 experience.** A version conflict shows an explicit "somebody else changed this, your
+edit was not saved" message with a **Reload and retry** button. The user's typed values stay on
+screen until they choose; nothing is silently overwritten and nothing is discarded on their
+behalf. `barcode_taken` is routed to the barcode field instead, because it is a field problem,
+not a concurrency one.
+
+**Verification (2026-08-30).** `pnpm lint`, `pnpm typecheck` and `pnpm build` clean;
+`pnpm api:generate` reproducible. Behaviour proven by the Playwright spec committed with
+Issue 13 — **5 passed**, including the conflict flow end to end.
+
 ---
 
 ### Issue 13 — `P3: Product concurrency tests`
@@ -944,7 +975,7 @@ commands produced the evidence, and every known limitation.
 |-----------|-------|--------|--------|
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
-| 3 | Catalog (Products) | 10–13 | 2 of 4 done |
+| 3 | Catalog (Products) | 10–13 | 3 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
 | 6 | Stock Balance Query | 23–24 | Not started |

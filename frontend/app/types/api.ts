@@ -1,37 +1,27 @@
 /**
- * Hand-written mirrors of the backend's Pydantic schemas.
+ * Named aliases over the generated contract.
  *
- * Temporary: Issue 12 replaces this file with a client generated from
- * `/api/v1/openapi.json`, which is the contract source (research §595). Until
- * then these are duplicated by hand and can drift — which is exactly why the
- * generated client is a scheduled issue rather than a nice-to-have.
+ * `shared/api/schema.d.ts` is produced from the backend's OpenAPI document by
+ * `pnpm api:generate` and is never edited by hand. This file exists only so the
+ * app can say `ProductPublic` instead of
+ * `components['schemas']['ProductPublic']` — it adds names, never fields. A
+ * shape declared here that the API does not actually return would be exactly
+ * the drift the generator was introduced to eliminate.
  */
 
-export interface UserPublic {
-  id: string
-  email: string
-}
+import type { components } from '#shared/api/schema'
 
-export interface SessionPublic {
-  user: UserPublic
-  active_organization_id: string | null
-}
+type Schemas = components['schemas']
 
-export interface OrganizationPublic {
-  id: string
-  name: string
-}
+export type UserPublic = Schemas['UserPublic']
+export type SessionPublic = Schemas['SessionPublic']
+export type OrganizationPublic = Schemas['OrganizationPublic']
 
-export interface ApiFieldError {
-  field: string
-  message: string
-}
+export type ProductPublic = Schemas['ProductPublic']
+export type ProductPage = Schemas['ProductPage']
+export type ProductCreate = Schemas['ProductCreate']
+export type ProductUpdate = Schemas['ProductUpdate']
 
-/** The single error envelope every 401/403/404/409/422 uses. */
-export interface ApiErrorResponse {
-  error: {
-    code: string
-    message: string
-    fields: ApiFieldError[] | null
-  }
-}
+/** The single envelope every 401/403/404/409/422 uses. */
+export type ApiErrorResponse = Schemas['ErrorResponse']
+export type ApiFieldError = Schemas['FieldError']

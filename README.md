@@ -107,6 +107,17 @@ pnpm typecheck                # vue-tsc, strict
 pnpm build
 ```
 
+**API contract** (from `frontend/`; needs `uv` on PATH):
+
+```bash
+pnpm api:generate            # export openapi.json, then regenerate shared/api/schema.d.ts
+pnpm api:check               # regenerate and fail if either file differs from git
+```
+
+`backend/openapi.json` and `frontend/shared/api/schema.d.ts` are **generated and committed**.
+Never edit either by hand: change the Pydantic schema and regenerate. CI runs `api:check`, so a
+contract that drifts from the code fails the build the same way a model without a migration does.
+
 **End-to-end** (from the repository root; needs PostgreSQL running and `uv` on PATH):
 
 ```bash

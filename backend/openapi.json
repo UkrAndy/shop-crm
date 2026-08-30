@@ -1,0 +1,1081 @@
+{
+  "components": {
+    "schemas": {
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FieldError"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "FieldError": {
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "message"
+        ],
+        "title": "FieldError",
+        "type": "object"
+      },
+      "LivenessResponse": {
+        "properties": {
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "LivenessResponse",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "OrganizationPublic": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "OrganizationPublic",
+        "type": "object"
+      },
+      "ProductCreate": {
+        "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "purchase_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,15}0*$)\\d{0,12}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Purchase Price"
+          },
+          "unit": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "unit",
+          "purchase_price"
+        ],
+        "title": "ProductCreate",
+        "type": "object"
+      },
+      "ProductPage": {
+        "description": "A page plus the size of the whole result set.\n\n`total` counts everything matching the filter, not the page: a pager that\nonly knows its own slice cannot tell the user how many pages there are.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductPublic"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ProductPage",
+        "type": "object"
+      },
+      "ProductPublic": {
+        "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "purchase_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Purchase Price",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "unit",
+          "purchase_price",
+          "barcode",
+          "version"
+        ],
+        "title": "ProductPublic",
+        "type": "object"
+      },
+      "ProductUpdate": {
+        "additionalProperties": false,
+        "description": "A partial update guarded by the version the client last saw.\n\n`version` is required: omitting it must not mean \"overwrite whatever is\nthere now\". Every other field is optional, and `None` for `barcode` clears\nit — which is why the model distinguishes \"absent\" from \"null\".",
+        "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "purchase_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,15}0*$)\\d{0,12}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Price"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "ProductUpdate",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "database": {
+            "enum": [
+              "up",
+              "down"
+            ],
+            "title": "Database",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "database"
+        ],
+        "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "SessionPublic": {
+        "properties": {
+          "active_organization_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Organization Id"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserPublic"
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "title": "SessionPublic",
+        "type": "object"
+      },
+      "SetActiveOrganizationRequest": {
+        "properties": {
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id"
+        ],
+        "title": "SetActiveOrganizationRequest",
+        "type": "object"
+      },
+      "UserPublic": {
+        "description": "Everything about a user the API is willing to disclose.\n\nThe stored credential is absent by construction rather than by filtering:\nthere is no code path that could include it. `test_identity.py` asserts the\nfield name appears nowhere in the OpenAPI document — including in prose like\nthis one — so the guard cannot be defeated by a description.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email"
+        ],
+        "title": "UserPublic",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "TestVasja API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "Revoke the session. Succeeds even without one, so a retry is harmless.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "description": "Who the caller is, for SSR hydration without a login-screen flash.\n\nThe active organization is re-resolved rather than read off the session row,\nso a revoked membership disappears here immediately.",
+        "operationId": "read_current_session_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Read Current Session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "description": "Process is up. Does not touch dependencies.",
+        "operationId": "liveness_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Liveness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "description": "Reports dependency health. Returns 200 with `degraded` when the database\nis unreachable so the scaffold stays inspectable before Postgres exists.",
+        "operationId": "readiness_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Readiness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/organizations": {
+      "get": {
+        "operationId": "list_organizations_api_v1_organizations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationPublic"
+                  },
+                  "title": "Response List Organizations Api V1 Organizations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "List Organizations",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/active": {
+      "get": {
+        "description": "403 when nothing is selected — the caller must choose, not be guessed for.",
+        "operationId": "read_active_organization_api_v1_organizations_active_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Read Active Organization",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "post": {
+        "description": "Store the selection on the session row.\n\nThe body names a candidate; membership decides. A client cannot widen its\nown scope by sending a different id.",
+        "operationId": "set_active_organization_api_v1_organizations_active_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetActiveOrganizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Set Active Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "list_products_api_v1_products_get",
+        "parameters": [
+          {
+            "description": "Matches name or barcode",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Matches name or barcode",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "List Products",
+        "tags": [
+          "products"
+        ]
+      },
+      "post": {
+        "operationId": "create_product_api_v1_products_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Create Product",
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/{product_id}": {
+      "get": {
+        "operationId": "read_product_api_v1_products__product_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Read Product",
+        "tags": [
+          "products"
+        ]
+      },
+      "patch": {
+        "description": "Partial update. `version` is required and a mismatch is 409, never a silent overwrite.",
+        "operationId": "update_product_api_v1_products__product_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Update Product",
+        "tags": [
+          "products"
+        ]
+      }
+    }
+  }
+}
