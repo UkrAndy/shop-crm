@@ -887,44 +887,60 @@ commands produced the evidence, and every known limitation.
 | No CI run on the phase branch | Issue 5 acceptance criterion *"workflow passes"* | — | ✅ Resolved — run 33318800111 green on `3c58339` |
 | `gh auth login` is interactive (browser) | Publishing these 26 issues as GitHub milestones/issues; opening the Phase 1 PR from the CLI | User | ❌ Open — `gh` reports no logged-in host |
 
-## Resume here — state as of 2026-08-30, end of Phase 1
+## Resume here — state as of 2026-08-30, end of Phase 2
 
-**Branch:** `phase-1`, pushed and tracking `origin/phase-1` ·
-**Remote:** `https://github.com/UkrAndy/shop-crm.git` · **CI:** green on the phase branch
-(`origin/main` is still at `f5e732c`, documents only — the whole scaffold lives on `phase-1`
-until its PR is merged).
+**Branches.** `origin/main` is still at `f5e732c` — documents only. Everything built so far
+lives on two pushed branches, neither merged:
 
-**Done: Milestone 1 issues 1–5 are implemented.** Verification evidence is recorded under each
+| Branch | Contains | CI |
+|---|---|---|
+| `phase-1` | Milestone 1, issues 1–5 | green |
+| `phase-2` | Milestone 2, issues 6–9 — branched off `phase-1`, so it contains Phase 1 too | green (3 jobs) |
+
+**Done: Milestones 1 and 2, issues 1–9.** Per-issue verification evidence is recorded under each
 issue above rather than summarised here.
 
 | Gate | Result |
 |---|---|
-| `uv run ruff check .` / `ruff format --check .` | clean, 11 files |
+| `uv run ruff check .` / `ruff format --check .` | clean, 28 files |
 | `uv run pyright` | 0 errors, strict |
-| `uv run pytest` | 2 passed |
-| `uv run alembic upgrade head` + `alembic check` | clean; drift detection proven by a throwaway model |
+| `uv run pytest` | 52 passed |
+| `uv run alembic upgrade head` + `alembic check` | clean; 2 revisions; drift detection and downgrade both proven |
 | `docker compose up -d` | postgres:17-alpine → `Up (healthy)`, PostgreSQL 17.11 |
-| `GET /api/v1/health/ready` | `{"status":"ok","database":"up"}` |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | clean / 0 errors / build complete |
-| SSR proof | `render-origin=server` in the initial HTML from both `pnpm dev` and the production preview |
-| GitHub Actions | [run 33318800111](https://github.com/UkrAndy/shop-crm/actions/runs/33318800111) — both jobs green |
+| `pnpm test:e2e` | 10 passed, Chromium, against the live stack |
+| GitHub Actions | [run 33323100364](https://github.com/UkrAndy/shop-crm/actions/runs/33323100364) — backend, frontend and e2e all green |
+
+**Working software today.** Log in at `/login`, land on a server-rendered protected page, pick
+an organization, reload without losing either, log out. `backend/scripts/seed_dev.py` provides
+`owner@example.com` and `multi@example.com`, both with password `seed-password-123`.
 
 **Environment:** `uv` 0.12.7 (at `%LOCALAPPDATA%\Programs\Python\Python314\Scripts\uv.exe`,
 not on the default PATH), `pnpm` 11.24.0, Node 24.19.0, `gh` 2.98.0 (unauthenticated),
-Docker Desktop 4.88.1 / Engine 29.7.2.
+Docker Desktop 4.88.1 / Engine 29.7.2, Playwright 1.62.1 with Chromium only.
+
+**Constraints established that later work must not break:**
+- **The API must be same-site with the frontend.** Hosts are part of a *site*; ports are not.
+  Pointing the frontend at `127.0.0.1` while the browser is on `localhost` silently breaks every
+  login. See `design-auth.md` §"Deployment constraint".
+- **Anything driving an SSR page must wait for hydration** before typing — `app.vue` sets
+  `data-hydrated` for exactly this.
+- **New models must be registered in `app/models/__init__.py`**, or `alembic check` will not see
+  them and CI will pass on a schema that does not exist.
 
 **Supply-chain notes carried forward.** `uv` has neither an Authenticode signature nor a
 PEP 740 attestation. `fastapi[standard]` pulls `sentry-sdk` transitively — inert without a
 DSN, but unaudited. On the npm side, `primevue` and `@primeuix/themes` have no SLSA
-attestation and no `repository` field. `pnpm install` reports
-`Lockfile passes supply-chain policies`.
+attestation and no `repository` field; every other dependency added since does.
+`pnpm install` reports `Lockfile passes supply-chain policies`.
 
 **Next, in this order:**
-1. Open the Phase 1 PR `phase-1` → `main` and merge it, so `main` carries the scaffold.
-   `gh` is unauthenticated, so this is a browser action:
-   https://github.com/UkrAndy/shop-crm/pull/new/phase-1
+1. Merge the phase branches into `main`. `gh` is unauthenticated, so this is a browser action:
+   https://github.com/UkrAndy/shop-crm/pull/new/phase-1 then
+   https://github.com/UkrAndy/shop-crm/pull/new/phase-2 — or merge `phase-2` alone, since it
+   already contains `phase-1`.
 2. `gh auth login` in a **new** terminal, then publish these 26 issues as milestones/issues
    if GitHub tracking is still wanted.
-3. Start Milestone 2 at **Issue 6** — the auth strategy decision
-   (`docs/design-docs/design-auth.md`) must be written before any code depends on it, and it
-   is the first issue that introduces an Alembic revision.
+3. Start Milestone 3 at **Issue 10** — the `Product` model. It is the first aggregate carrying a
+   `version` token, and Issues 15 and 20 copy whatever pattern it sets, so it is worth getting
+   right rather than quickly.
