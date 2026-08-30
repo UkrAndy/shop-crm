@@ -2,12 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # Phase branches are covered too: each phase must be green before its PR,
+    # which is the acceptance criterion the backlog states for this workflow.
+    branches: [main, 'phase-**']
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Keyed on the source branch, so the push run and the pull_request run of the
+  # same commit collapse into one instead of billing twice.
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
