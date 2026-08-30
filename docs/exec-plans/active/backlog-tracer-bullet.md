@@ -699,6 +699,49 @@ temporarily disabling the version check).
 
 **Modules.** `backend/tests/test_products.py`, `frontend/tests/e2e/products.spec.ts`.
 
+**Status:** ✅ Done (2026-08-30)
+
+**Why a second kind of test fixture was needed.** The rest of the suite runs inside one
+transaction that is rolled back — the right default, and useless here: two statements in one
+transaction never contend, and threads on separate connections cannot see each other's
+uncommitted work. `tests/test_products_concurrency.py` therefore **commits for real** on
+independent connections, on a throwaway organization it deletes afterwards.
+
+**A barrier is what makes it a race.** Both threads read, then wait, then write. Without the
+barrier the first could finish before the second even loaded, and the test would pass while
+proving nothing.
+
+**Three cases:**
+1. Two concurrent updates → exactly one `won`, one `lost`, and the row ends at version **2**,
+   not 3: the loser wrote nothing at all.
+2. The same race through the service layer → the loser raises `VersionConflictError`, whose
+   `status_code` is asserted to be **409**, tying the concurrency behaviour to the documented
+   HTTP contract rather than to an internal exception name.
+3. Concurrent creates of *different* products → both succeed. The counterpart case: locking must
+   not turn unrelated concurrent writes into failures.
+
+**The acceptance criterion was carried out, not assumed.** `version_id_col` and the explicit
+stale-client check were both commented out, and the suite was re-run:
+
+```
+FAILED test_two_concurrent_updates_leave_exactly_one_winner
+FAILED test_the_loser_gets_the_error_that_becomes_409   (assert 2 == 1 — both writes succeeded)
+1 passed
+```
+
+Two failures and one pass is exactly the right shape: the lost update appears, while the
+concurrent-creates test stays green because it must not depend on locking. The source files were
+then restored and confirmed byte-identical to `HEAD` with `git diff --exit-code`.
+
+**Playwright:** `frontend/tests/e2e/products.spec.ts` — create appears in the list with no manual
+refresh; the search filter narrows it; a sub-kopiyka price is refused client-side; a duplicate
+barcode is reported on the barcode field; and a stale edit produces the reload-and-retry prompt,
+after which the *other* writer's change is the one still standing.
+
+**Verification (2026-08-30).** **101 backend tests passed**, three consecutive runs, no
+cross-test leakage. `ruff` / `ruff format --check` clean (38 files) · `pyright` 0 errors, strict ·
+Playwright **5 passed** for products, **10 passed** for auth.
+
 ---
 
 ## Milestone 4 — Phase 4: Goods Receipt Draft & Edit
@@ -975,7 +1018,7 @@ commands produced the evidence, and every known limitation.
 |-----------|-------|--------|--------|
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
-| 3 | Catalog (Products) | 10–13 | 3 of 4 done |
+| 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
 | 6 | Stock Balance Query | 23–24 | Not started |
