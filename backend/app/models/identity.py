@@ -11,23 +11,16 @@ import uuid
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    DateTime,
     ForeignKey,
     String,
     UniqueConstraint,
-    Uuid,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
-
-# Primary keys are UUIDs rather than sequential integers. In a multi-tenant
-# system an integer id in a URL leaks row counts and invites enumeration across
-# organizations; scope checks stop access but not inference. uuid4 has poor
-# index locality — uuid7 is the upgrade path once the Python floor reaches 3.14,
-# and it is a drop-in change because nothing depends on the value's shape.
-_UUID_PK = Uuid(as_uuid=True)
+from app.models.conventions import TIMESTAMPTZ
+from app.models.conventions import UUID_PK as _UUID_PK
 
 # RFC 5321 caps an address at 320 octets.
 _EMAIL_MAX_LENGTH = 320
@@ -52,9 +45,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(_EMAIL_MAX_LENGTH), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[dt.datetime] = mapped_column(TIMESTAMPTZ, server_default=func.now())
 
     memberships: Mapped[list[Membership]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -71,9 +62,7 @@ class Organization(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(_UUID_PK, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[dt.datetime] = mapped_column(TIMESTAMPTZ, server_default=func.now())
 
     memberships: Mapped[list[Membership]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"
@@ -101,9 +90,7 @@ class Membership(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), index=True
     )
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[dt.datetime] = mapped_column(TIMESTAMPTZ, server_default=func.now())
 
     user: Mapped[User] = relationship(back_populates="memberships")
     organization: Mapped[Organization] = relationship(back_populates="memberships")
@@ -134,14 +121,10 @@ class UserSession(Base):
         ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
     )
 
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    last_used_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[dt.datetime] = mapped_column(TIMESTAMPTZ, server_default=func.now())
+    last_used_at: Mapped[dt.datetime] = mapped_column(TIMESTAMPTZ, server_default=func.now())
     # Absolute expiry. Never extended — only `last_used_at` slides.
-    expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[dt.datetime] = mapped_column(TIMESTAMPTZ)
 
     # Session/device audit data (research §621). Recorded, not yet surfaced.
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)

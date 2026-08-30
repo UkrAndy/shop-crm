@@ -516,6 +516,8 @@ Goal: establish the mutable-aggregate pattern — optimistic concurrency with a 
 
 ### Issue 10 — `P3: Product model with version token`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** First aggregate carrying a `version`. The pattern chosen here is repeated by
 goods receipts, so it must be right.
 
@@ -535,6 +537,41 @@ goods receipts, so it must be right.
 **Tests.** Decimal precision; version increment; barcode uniqueness scoped per organization.
 
 **Out of scope.** Categories, images, price history, stock fields on the product row.
+
+**The pattern Issues 15 and 20 will copy.** `version` is wired through SQLAlchemy's
+`__mapper_args__ = {"version_id_col": version}`, not incremented by hand. That makes every
+update emit `UPDATE … WHERE id = ? AND version = ?` and raise `StaleDataError` when it matches
+no row, so a lost update is *impossible* rather than merely unlikely — the guarantee lives in
+the SQL, not in remembering to check first.
+
+**Other decisions:**
+
+| Decision | Reason |
+|---|---|
+| `numeric(14, 2)`, extracted to `app/models/conventions.py` alongside `UUID_PK` and `TIMESTAMPTZ` | Defined once so a later table cannot quietly pick `float` for money or a naive timestamp. `identity.py` was migrated onto the same constants. |
+| **Partial** unique index on `(organization_id, barcode) WHERE barcode IS NOT NULL` | Any number of products may have no barcode; those that do stay unique within their organization. Two independent ФОПs selling the same manufactured item both hold its EAN legitimately, so the constraint is scoped, not global. |
+| `CHECK (btrim(name) <> '')` | Rejects `""` and `"   "` alike. Trimming in the service layer only fixes the paths that remember to call it. |
+| `CHECK (purchase_price >= 0)` | PRD says non-negative, not positive — a promotional item legitimately arrives at zero cost. |
+| `created_at` added, though the issue does not list it | Every other table has it; a catalog row without a creation time is an odd exception, not a deliberate one. |
+
+**A rounding hazard, documented rather than hidden.** `numeric(14, 2)` makes PostgreSQL *round*
+a third decimal place instead of refusing it, so `10.005` silently becomes `10.01`. A test pins
+that behaviour, and rejecting sub-kopiyka input is Issue 11's job at the API boundary — which
+makes that guard load-bearing rather than decorative.
+
+**Verification (2026-08-30).**
+- **Test-first, RED confirmed:** `tests/test_catalog.py` failed to import before the model
+  existed; **17 passed** after, and **69 passed** across the whole suite.
+- `ruff check` / `ruff format --check` clean (32 files) · `pyright` 0 errors, strict ·
+  `alembic check` clean · `alembic downgrade -1` and back proven.
+- `\d products` confirms `numeric(14,2)`, `version` defaulting to 1, both CHECK constraints, and
+  the partial index rendered as `UNIQUE, btree (organization_id, barcode) WHERE barcode IS NOT NULL`.
+- **`test_product_has_no_quantity_column`** asserts the PRD's central architectural claim rather
+  than trusting it: a mutable stock counter on the product row is exactly the shortcut that gets
+  added quietly under deadline.
+- `test_stale_version_loses` moves the row's version forward with raw SQL — bypassing the
+  identity map the way another connection would — and asserts `StaleDataError`, so the mechanism
+  is tested, not just the counter.
 
 ---
 
@@ -870,7 +907,7 @@ commands produced the evidence, and every known limitation.
 |-----------|-------|--------|--------|
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
-| 3 | Catalog (Products) | 10–13 | Not started |
+| 3 | Catalog (Products) | 10–13 | 1 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
 | 6 | Stock Balance Query | 23–24 | Not started |
