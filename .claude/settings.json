@@ -18,7 +18,9 @@
       "Bash(node -e ' *)",
       "Bash(curl -s https://api.github.com/repos/UkrAndy/shop-crm/actions/*)",
       "Bash(curl -s https://api.github.com/repos/UkrAndy/shop-crm/check-runs/*)",
-      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('.claude/settings.json','utf8'\\)\\); console.log\\('valid JSON'\\)\")"
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('.claude/settings.json','utf8'\\)\\); console.log\\('valid JSON'\\)\")",
+      "Bash(git switch *)",
+      "Bash(curl -s \"https://pypi.org/pypi/argon2-cffi/json\")"
     ]
   }
 }

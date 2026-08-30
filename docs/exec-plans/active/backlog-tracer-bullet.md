@@ -247,6 +247,8 @@ Goal: authenticated user operating inside an organization scope; 401/403 contrac
 
 ### Issue 6 — `P2: Auth strategy decision and identity models`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** The plan defers the session-vs-JWT choice to implementation time. SSR changes the
 trade-off: an HTTP-only cookie is readable by the Nuxt server during SSR, a token in
 `localStorage` is not. This decision must be written down before code depends on it.
@@ -268,6 +270,49 @@ trade-off: an HTTP-only cookie is readable by the Nuxt server during SSR, a toke
 **Tests.** Hash round-trip; unique constraint on `users.email`.
 
 **Out of scope.** Registration, password reset, multi-role RBAC (PRD Out of Scope).
+
+**Decision.** Opaque server-side session token in an HTTP-only `SameSite=Lax` cookie, stored
+hashed in a `sessions` table; 8h idle / 30d absolute; Argon2id via `argon2-cffi`. Full rationale
+and consequences — including the CSRF posture and the 401-vs-403 contract — are in
+[`../../design-docs/design-auth.md`](../../design-docs/design-auth.md), pointed to from
+`AGENTS.md`.
+
+**Conventions established here** (they bind every later model):
+
+| Convention | Reason |
+|---|---|
+| UUID primary keys | A sequential id in a URL leaks row counts and invites enumeration across organizations; scope checks stop access, not inference. `uuid7` is the drop-in upgrade once the Python floor reaches 3.14. |
+| `timestamptz` for every timestamp | research §385 |
+| `email` lowercased, enforced by a `CHECK` constraint | Application-only normalisation is how `Bob@x.com` ends up beside `bob@x.com` |
+| Session tokens hashed at rest | A database read then yields nothing an attacker can present as a cookie |
+| No `role` column | RBAC is PRD Out of Scope; an unused column invites code to depend on a shape nobody designed |
+
+**Scope note.** `app/core/security.py` (password hashing only) and `tests/conftest.py` were
+added although the issue lists neither: the hashing requirement has to live somewhere, and the
+"unique constraint on `users.email`" criterion cannot be verified without a database fixture.
+The fixture is deliberately minimal — Issue 25 hardens it for concurrency.
+
+**Scope note.** `migrations/script.py.mako` was rewritten so generated revisions match the
+project's lint and format rules. Fixing the template rather than each generated file stops the
+same manual cleanup recurring in Phases 3–5.
+
+**Verification (2026-08-30).**
+- **Test-first, RED confirmed:** before the migration existed, `uv run pytest` reported
+  `10 failed, 14 passed` — every failure a missing relation, while the hashing tests already
+  passed. After `alembic upgrade head`: **24 passed**.
+- `uv run ruff check .` clean · `ruff format --check .` 16 files · `uv run pyright` 0 errors,
+  strict · `uv run alembic check` clean.
+- **Downgrade proven, not assumed:** `alembic downgrade base` dropped all three tables and
+  `upgrade head` recreated them.
+- `\d users` confirms `timestamp with time zone`, `ck_users_email_lowercase`, the unique
+  `ix_users_email`, and `ON DELETE CASCADE` from `memberships`.
+- Hash leakage is guarded by serialising the **entire** OpenAPI document and asserting
+  `password_hash` is absent, so a serializer added in a later phase cannot leak it quietly.
+
+**Dependency added.** `argon2-cffi` 25.1.0. PEP 740 attestation present for it and for
+`argon2-cffi-bindings` 26.1.0, both from GitHub Trusted Publishers (`hynek/argon2-cffi`,
+`hynek/argon2-cffi-bindings`) — stronger provenance than any other dependency in this
+repository, including `uv` itself.
 
 ---
 
@@ -698,7 +743,7 @@ commands produced the evidence, and every known limitation.
 | Milestone | Phase | Issues | Status |
 |-----------|-------|--------|--------|
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
-| 2 | Identity & Organizations | 6–9 | Not started |
+| 2 | Identity & Organizations | 6–9 | 1 of 4 done |
 | 3 | Catalog (Products) | 10–13 | Not started |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
