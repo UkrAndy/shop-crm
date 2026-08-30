@@ -184,6 +184,8 @@ added so a clean checkout has the directory Alembic expects.
 
 ### Issue 5 — `P1: CI pipeline and developer setup documentation`
 
+**Status:** ⚠️ Done locally; the workflow has not yet run on GitHub (see Verification).
+
 **Context.** `AGENTS.md` §12 forbids claiming completion without evidence; CI makes the
 quality gates non-optional. README currently has a placeholder setup section.
 
@@ -204,6 +206,32 @@ quality gates non-optional. README currently has a placeholder setup section.
 **Tests.** The workflow run itself.
 
 **Out of scope.** Deployment, container publishing, release automation.
+
+**Verification (2026-08-30).**
+- Every command in the README was executed on this checkout: `cp .env.example .env` (all
+  three), `docker compose up -d` → `Up (healthy)`, `docker compose ps`, `uv sync`,
+  `uv run alembic upgrade head`, `uv run ruff check .`, `uv run ruff format --check .`
+  (11 files formatted), `uv run pyright` (0 errors, strict), `uv run pytest` (2 passed),
+  `uv run alembic check`, `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm build`,
+  `pnpm dev`, `docker compose down -v`.
+- **`alembic check` was proven load-bearing, not assumed:** a throwaway `DriftProbe` model
+  was added, `alembic check` failed with
+  `FAILED: New upgrade operations detected: [('add_table', ...'drift_probe'...)]` and a
+  non-zero exit; the probe was then removed and the check returned to exit 0.
+- `.github/workflows/ci.yml`, `docker-compose.yml` and `pnpm-workspace.yaml` parse as valid
+  YAML; the workflow declares 2 jobs (9 backend steps, 7 frontend steps).
+- Action versions pinned to the current majors as of 2026-08-30: `actions/checkout@v7`,
+  `actions/setup-node@v7`, `pnpm/action-setup@v6`, `astral-sh/setup-uv@v10`.
+
+**❌ Could not be verified.** *"Workflow passes on the phase branch."* `gh` is not
+authenticated on this host and the `phase-1` branch is not on the remote, so no GitHub
+Actions run exists. **This acceptance criterion is open** — the workflow is written and
+locally equivalent, but unproven in CI.
+
+**Decision taken during implementation.** A root `package.json` was added: `pnpm/action-setup`
+resolves the pnpm version from `packageManager`, and the workspace root previously had no
+manifest. It also pins `engines.node` and forwards `lint`/`typecheck`/`build`/`dev` to the
+frontend package, so the README and CI use one set of commands.
 
 ---
 
@@ -663,7 +691,7 @@ commands produced the evidence, and every known limitation.
 
 | Milestone | Phase | Issues | Status |
 |-----------|-------|--------|--------|
-| 1 | Repository Scaffold & Baseline | 1–5 | 4 of 5 done |
+| 1 | Repository Scaffold & Baseline | 1–5 | 5 of 5 implemented (Issue 5 unverified in CI) |
 | 2 | Identity & Organizations | 6–9 | Not started |
 | 3 | Catalog (Products) | 10–13 | Not started |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
@@ -675,32 +703,47 @@ commands produced the evidence, and every known limitation.
 
 ## Open dependencies
 
-| Blocker | Blocks | Owner |
-|---------|--------|-------|
-| Docker Desktop requires host reboot | Issue 4, and every test needing Postgres | User |
-| `gh auth login` is interactive (browser) | Publishing this backlog to GitHub | User |
-| Git identity is a placeholder (`TestVasja Agent <agent@testvesja.local>`) | Commit attribution on GitHub | User — confirm intended |
+| Blocker | Blocks | Owner | Status |
+|---------|--------|-------|--------|
+| Docker Desktop requires host reboot | Issue 4, and every test needing Postgres | User | ✅ Resolved — Engine 29.7.2 responding |
+| Git identity is a placeholder | Commit attribution on GitHub | User | ✅ Resolved — `Andrii Bryla <bryla.andrii@gmail.com>` |
+| `gh auth login` is interactive (browser) | Publishing these 26 issues as GitHub milestones/issues | User | ❌ Open — `gh` reports no logged-in host |
+| No CI run on the phase branch | Issue 5 acceptance criterion *"workflow passes"* | User/next session | ❌ Open |
 
-## Resume here — state as of 2026-08-30, before host reboot
+## Resume here — state as of 2026-08-30, end of Phase 1
 
-**Branch:** `phase-1/scaffold-baseline` · **Last commit:** `6c6e3f2` · working tree clean.
+**Branch:** `phase-1` · **Remote:** `origin` → `https://github.com/UkrAndy/shop-crm.git`
+(`origin/main` is at `f5e732c`, documents only — the whole scaffold lives on `phase-1`).
 
-**Done:** issues 1 and 2 (backend scaffold, Alembic harness). Verified with
-`uv run pytest` (2 passed), `uv run pyright` (0 errors, strict), `ruff check`/`format --check`
-(clean), `alembic upgrade head --sql` (PostgresqlImpl, transactional DDL).
+**Done: Milestone 1 issues 1–5 are implemented.** Verification evidence is recorded under each
+issue above rather than summarised here.
 
-**Environment already installed:** `uv` 0.12.7, `pnpm` 11.24.0, `gh` 2.98.0, Docker Desktop
-(pending reboot). Provenance of `uv`/`pnpm`/`gh`/`httpx2` was audited on 2026-08-30; `uv` has
-neither an Authenticode signature nor a PEP 740 attestation, which is the weakest link.
-`fastapi[standard]` pulls `sentry-sdk` transitively — inert without a DSN, but unaudited.
+| Gate | Result |
+|---|---|
+| `uv run ruff check .` / `ruff format --check .` | clean, 11 files |
+| `uv run pyright` | 0 errors, strict |
+| `uv run pytest` | 2 passed |
+| `uv run alembic upgrade head` + `alembic check` | clean; drift detection proven by a throwaway model |
+| `docker compose up -d` | postgres:17-alpine → `Up (healthy)`, PostgreSQL 17.11 |
+| `GET /api/v1/health/ready` | `{"status":"ok","database":"up"}` |
+| `pnpm lint` / `pnpm typecheck` / `pnpm build` | clean / 0 errors / build complete |
+| SSR proof | `render-origin=server` in the initial HTML from both `pnpm dev` and the production preview |
 
-**Not done:** issues 3 (Nuxt 4 frontend scaffold), 4 (docker-compose Postgres), 5 (CI + README).
-No GitHub repository or remote exists yet, so none of these 26 issues has been published.
+**Environment:** `uv` 0.12.7 (at `%LOCALAPPDATA%\Programs\Python\Python314\Scripts\uv.exe`,
+not on the default PATH), `pnpm` 11.24.0, Node 24.19.0, `gh` 2.98.0 (unauthenticated),
+Docker Desktop 4.88.1 / Engine 29.7.2.
 
-**After reboot, in this order:**
-1. Confirm the engine is up: `docker version` — the server section must respond, not just the client.
-2. `gh auth login` in a **new** terminal (`gh` is not on the PATH of shells opened before install).
-3. Decide the git identity question in the table above before any push.
-4. Then either publish the backlog as milestones/issues, or continue with issue 3 — issue 3
-   requires auditing the npm dependency tree (Nuxt, PrimeVue, Tailwind, TanStack Query, Pinia,
-   Zod) *before* installing, per the standing rule.
+**Supply-chain notes carried forward.** `uv` has neither an Authenticode signature nor a
+PEP 740 attestation. `fastapi[standard]` pulls `sentry-sdk` transitively — inert without a
+DSN, but unaudited. On the npm side, `primevue` and `@primeuix/themes` have no SLSA
+attestation and no `repository` field. `pnpm install` reports
+`Lockfile passes supply-chain policies`.
+
+**Next, in this order:**
+1. Push `phase-1` and open a PR against `main` so the CI workflow actually runs — that closes
+   the only open acceptance criterion in Milestone 1.
+2. `gh auth login` in a **new** terminal, then publish these 26 issues as milestones/issues
+   if GitHub tracking is still wanted.
+3. Start Milestone 2 at **Issue 6** — the auth strategy decision
+   (`docs/design-docs/design-auth.md`) must be written before any code depends on it, and it
+   is the first issue that introduces an Alembic revision.

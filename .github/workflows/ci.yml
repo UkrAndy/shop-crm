@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend — lint, types, tests, migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Must match docker-compose.yml: concurrency behaviour in Phases 5 and 7
+        # is only meaningful against the same PostgreSQL major.
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: testvasja
+          POSTGRES_PASSWORD: testvasja
+          POSTGRES_DB: testvasja
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testvasja -d testvasja"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Environment wins over backend/.env in pydantic-settings, and no .env
+      # exists on a clean checkout anyway.
+      DATABASE_URL: postgresql+psycopg://testvasja:testvasja@localhost:5432/testvasja
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Typecheck (strict)
+        run: uv run pyright
+
+      - name: Tests
+        run: uv run pytest
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      # Fails when a model has no matching revision, which is the only automated
+      # guard against schema drift now that autogenerate is never run implicitly.
+      - name: Fail on model/migration drift
+        run: uv run alembic check
+
+  frontend:
+    name: Frontend — lint, types, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Reads the pnpm version from the root package.json "packageManager" field.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck (vue-tsc, strict)
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
