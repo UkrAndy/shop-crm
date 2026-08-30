@@ -384,7 +384,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessionPublic"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -393,7 +393,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -420,7 +420,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -449,7 +449,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessionPublic"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -458,7 +458,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -487,7 +487,7 @@ export interface operations {
                     "application/json": components["schemas"]["LivenessResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -516,7 +516,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -545,7 +545,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationPublic"][];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -554,7 +554,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Outside the caller's organization scope */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -563,7 +563,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -592,7 +592,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationPublic"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -601,7 +601,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Outside the caller's organization scope */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -610,7 +610,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -643,7 +643,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationPublic"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -652,7 +652,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Outside the caller's organization scope */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -661,7 +661,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -695,7 +695,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProductPage"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -704,7 +704,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Outside the caller's organization scope */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -713,7 +713,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -746,7 +746,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProductPublic"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -755,7 +755,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Outside the caller's organization scope */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -764,7 +764,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Conflict */
+            /** @description Conflicts with the current state */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -773,7 +773,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -804,7 +804,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProductPublic"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -813,7 +813,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Outside the caller's organization scope */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -822,7 +822,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -857,7 +857,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProductPublic"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Not authenticated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -866,7 +866,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Outside the caller's organization scope */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -875,7 +875,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Conflict */
+            /** @description Conflicts with the current state */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -884,7 +884,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;

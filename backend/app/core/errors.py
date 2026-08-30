@@ -35,13 +35,30 @@ class ErrorResponse(BaseModel):
     error: ErrorBody
 
 
+# Our own wording, deliberately, rather than whatever `http.HTTPStatus` calls
+# these. The stdlib phrases are not stable across Python versions — 3.13 renamed
+# 422 from "Unprocessable Entity" to "Unprocessable Content" per RFC 9110 — and
+# the OpenAPI document is a committed artifact that CI diffs. A description that
+# changes with the interpreter would make that check meaningless.
+_DESCRIPTIONS = {
+    401: "Not authenticated",
+    403: "Outside the caller's organization scope",
+    404: "Not found within the caller's scope",
+    409: "Conflicts with the current state",
+    422: "Validation failed",
+}
+
+
 def documented(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     """OpenAPI `responses` entries, so the generated client knows the error shape.
 
     Without this the document advertises only the success body, and the client
     ends up narrowing on a type it was never told about.
     """
-    return {code: {"model": ErrorResponse} for code in status_codes}
+    return {
+        code: {"model": ErrorResponse, "description": _DESCRIPTIONS.get(code, "Error")}
+        for code in status_codes
+    }
 
 
 class AppError(Exception):

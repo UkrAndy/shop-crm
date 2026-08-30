@@ -451,7 +451,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "422": {
             "content": {
@@ -461,7 +461,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Login",
@@ -486,7 +486,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Logout",
@@ -518,7 +518,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "422": {
             "content": {
@@ -528,7 +528,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Read Current Session",
@@ -560,7 +560,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Liveness",
@@ -592,7 +592,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Readiness",
@@ -627,7 +627,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "403": {
             "content": {
@@ -637,7 +637,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Outside the caller's organization scope"
           },
           "422": {
             "content": {
@@ -647,7 +647,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "List Organizations",
@@ -679,7 +679,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "403": {
             "content": {
@@ -689,7 +689,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Outside the caller's organization scope"
           },
           "422": {
             "content": {
@@ -699,7 +699,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Read Active Organization",
@@ -739,7 +739,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "403": {
             "content": {
@@ -749,7 +749,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Outside the caller's organization scope"
           },
           "422": {
             "content": {
@@ -759,7 +759,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Set Active Organization",
@@ -834,7 +834,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "403": {
             "content": {
@@ -844,7 +844,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Outside the caller's organization scope"
           },
           "422": {
             "content": {
@@ -854,7 +854,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "List Products",
@@ -893,7 +893,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "403": {
             "content": {
@@ -903,7 +903,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Outside the caller's organization scope"
           },
           "409": {
             "content": {
@@ -913,7 +913,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "Conflicts with the current state"
           },
           "422": {
             "content": {
@@ -923,7 +923,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Create Product",
@@ -966,7 +966,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "403": {
             "content": {
@@ -976,7 +976,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Outside the caller's organization scope"
           },
           "422": {
             "content": {
@@ -986,7 +986,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Read Product",
@@ -1038,7 +1038,7 @@
                 }
               }
             },
-            "description": "Unauthorized"
+            "description": "Not authenticated"
           },
           "403": {
             "content": {
@@ -1048,7 +1048,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Outside the caller's organization scope"
           },
           "409": {
             "content": {
@@ -1058,7 +1058,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "Conflicts with the current state"
           },
           "422": {
             "content": {
@@ -1068,7 +1068,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Validation failed"
           }
         },
         "summary": "Update Product",
