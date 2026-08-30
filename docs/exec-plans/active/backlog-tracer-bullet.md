@@ -750,6 +750,8 @@ Goal: the document structure — header plus lines, editable only while `draft`.
 
 ### Issue 14 — `P4: Warehouse and counterparty reference stubs`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** PRD scopes one warehouse per organization and a name-only supplier entity. These
 exist to make the receipt valid, not as full modules.
 
@@ -765,6 +767,31 @@ reference a supplier by id.
 **Tests.** Default warehouse exists for a newly created organization.
 
 **Out of scope.** Multiple warehouses, transfers, contracts, counterparty statistics.
+
+**The boundaries are constraints, not conventions.** `warehouses` carries a unique constraint on
+`organization_id` alone — the PRD scopes exactly one warehouse per organization and puts
+transfers out of scope, so the day that changes is a deliberate migration rather than a surprise
+found in production. `counterparties_stub` is unique on `(organization_id, name)`: the entity is
+a name and nothing else, so two rows with the same name are indistinguishable and a user picking
+between them in a dropdown is picking at random.
+
+**Two tests assert what these tables must *not* grow.** `test_the_counterparty_stub_stays_a_stub`
+pins the exact column set, and `test_the_warehouse_holds_no_stock` does the same while checking
+there is no `quantity` — a name-only reference table is precisely the kind that accretes columns
+nobody planned, and stock on a warehouse row would be the same shortcut `products` is already
+guarded against.
+
+**Get-or-create, inside a savepoint.** `inventory.default_warehouse()` creates the warehouse on
+first use rather than requiring it up front, so an organization inserted by hand still resolves.
+The insert runs in `session.begin_nested()`: two concurrent first-uses would both see nothing and
+both insert, the unique constraint rejects one, and the savepoint confines that failure so the
+caller's transaction survives and simply re-reads the winner's row. Flushing directly would
+poison the outer transaction and turn a benign race into a failed request.
+
+**Verification (2026-08-30).** Test-first, RED confirmed (the module did not exist);
+**11 passed** for this issue and **112** across the suite. `ruff` / `ruff format --check` clean
+(43 files) · `pyright` 0 errors, strict · `alembic check` clean · downgrade and back proven ·
+the OpenAPI contract is unchanged, as expected for an issue that adds no endpoint.
 
 ---
 
@@ -1019,7 +1046,7 @@ commands produced the evidence, and every known limitation.
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
-| 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
+| 4 | Goods Receipt Draft & Edit | 14–17 | 1 of 4 done |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
 | 6 | Stock Balance Query | 23–24 | Not started |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |

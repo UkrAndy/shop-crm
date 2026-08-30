@@ -6,6 +6,16 @@ is a model CI believes does not exist.
 """
 
 from app.models.catalog import Product
+from app.models.counterparty import CounterpartyStub
 from app.models.identity import Membership, Organization, User, UserSession
+from app.models.inventory import Warehouse
 
-__all__ = ["Membership", "Organization", "Product", "User", "UserSession"]
+__all__ = [
+    "CounterpartyStub",
+    "Membership",
+    "Organization",
+    "Product",
+    "User",
+    "UserSession",
+    "Warehouse",
+]
