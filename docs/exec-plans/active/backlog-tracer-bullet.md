@@ -1181,7 +1181,7 @@ commands produced the evidence, and every known limitation.
 | No CI run on the phase branch | Issue 5 acceptance criterion *"workflow passes"* | — | ✅ Resolved — run 33318800111 green on `3c58339` |
 | `gh auth login` is interactive (browser) | Publishing these 26 issues as GitHub milestones/issues; opening the Phase 1 PR from the CLI | User | ❌ Open — `gh` reports no logged-in host |
 
-## Resume here — state as of 2026-08-30, end of Phase 3
+## Resume here — state as of 2026-08-30, end of Phase 4
 
 **Branches.** `origin/main` is still at `f5e732c` — documents only. Each phase branch is stacked
 on the previous one, so the newest contains all the others:
@@ -1190,26 +1190,28 @@ on the previous one, so the newest contains all the others:
 |---|---|---|
 | `phase-1` | Milestone 1, issues 1–5 | green |
 | `phase-2` | Milestone 2, issues 6–9 | green |
-| `phase-3` | Milestone 3, issues 10–13 — **contains phases 1 and 2** | green (3 jobs) |
+| `phase-3` | Milestone 3, issues 10–13 | green |
+| `phase-4` | Milestone 4, issues 14–17 — **contains phases 1–3** | green (3 jobs) |
 
-**Done: Milestones 1–3, issues 1–13.** Per-issue verification evidence is recorded under each
+**Done: Milestones 1–4, issues 1–17.** Per-issue verification evidence is recorded under each
 issue above rather than summarised here.
 
 | Gate | Result |
 |---|---|
-| `uv run ruff check .` / `ruff format --check .` | clean, 38 files |
+| `uv run ruff check .` / `ruff format --check .` | clean, 51 files |
 | `uv run pyright` | 0 errors, strict |
-| `uv run pytest` | **101 passed**, stable over 3 consecutive runs |
-| `uv run alembic upgrade head` + `alembic check` | clean; 3 revisions; drift detection and downgrade proven |
+| `uv run pytest` | **162 passed**, stable over 3 consecutive runs |
+| `uv run alembic upgrade head` + `alembic check` | clean; 5 revisions; downgrade proven each time |
 | `pnpm api:check` | contract and generated types reproduce byte-for-byte |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | clean / 0 errors / build complete |
-| `pnpm test:e2e` | **15 passed** (10 auth + 5 products), Chromium, live stack |
-| GitHub Actions | [run 33325811478](https://github.com/UkrAndy/shop-crm/actions/runs/33325811478) — all three jobs green |
+| `pnpm test:e2e` | **20 passed** (10 auth + 5 products + 5 receipts) |
+| GitHub Actions | [run 33327842632](https://github.com/UkrAndy/shop-crm/actions/runs/33327842632) — all three jobs green |
 
-**Working software today.** Log in, land on a server-rendered protected page, pick an
-organization, browse and search the product catalog, create and edit products with optimistic
-concurrency and an explicit conflict experience. `backend/scripts/seed_dev.py` provides
-`owner@example.com` and `multi@example.com`, both with password `seed-password-123`.
+**Working software today.** Log in · pick an organization · browse, search, create and edit
+products with optimistic concurrency · create a supplier · create a goods receipt draft with
+multiple lines and a running total · reopen it after a reload unchanged · a posted document
+renders read-only. `backend/scripts/seed_dev.py` provides `owner@example.com` and
+`multi@example.com`, both with password `seed-password-123`.
 
 **Environment:** `uv` 0.12.7 (at `%LOCALAPPDATA%\Programs\Python\Python314\Scripts\uv.exe`,
 not on the default PATH), Python pinned to **3.14** by `backend/.python-version`,
@@ -1218,21 +1220,23 @@ Engine 29.7.2, Playwright 1.62.1 with Chromium only.
 
 **Constraints established that later work must not break:**
 - **The API must be same-site with the frontend.** Hosts are part of a *site*; ports are not.
-  Pointing the frontend at `127.0.0.1` while the browser is on `localhost` silently breaks every
-  login. See `design-auth.md` §"Deployment constraint".
+  See `design-auth.md` §"Deployment constraint".
 - **Anything driving an SSR page must wait for hydration** before typing — `app.vue` sets
-  `data-hydrated` for exactly this.
+  `data-hydrated`. Scope PrimeVue option lookups to the **visible** overlay: the markup of
+  previously opened `Select`s stays in the DOM.
 - **New models must be registered in `app/models/__init__.py`**, or `alembic check` will not see
   them and CI will pass on a schema that does not exist.
-- **`openapi.json` and `schema.d.ts` are generated and committed.** Change a Pydantic schema,
-  then run `pnpm api:generate` and commit both. CI fails on drift.
-- **Nothing in the OpenAPI document may depend on the Python version.** `documented()` supplies
-  its own response descriptions because `http.HTTPStatus` phrases are not stable across releases
-  — 3.13 renamed 422 from "Unprocessable Entity" to "Unprocessable Content" — and a committed
-  artifact that varies with the interpreter makes the drift check meaningless.
-- **Optimistic concurrency is `version_id_col`, not a hand-written counter.** Issues 15 and 20
-  copy this. Both the stale-client check and the `StaleDataError` path are needed; each alone
-  leaves a hole, and `tests/test_products_concurrency.py` proves it.
+- **`openapi.json` and `schema.d.ts` are generated and committed** — `pnpm api:generate`, then
+  commit both. Nothing in that document may depend on the Python version.
+- **Optimistic concurrency is `version_id_col`.** Both the stale-client check and the
+  `StaleDataError` path are needed. **A collection change does not bump the parent's version** —
+  editing child rows must flag the parent dirty, or two users rewriting the same document both
+  win.
+- **`now()` is the transaction timestamp in PostgreSQL.** Rows written together share it exactly,
+  so it can never order them. Line order is a stored `position`.
+- **Test-only capabilities live in `backend/scripts/`, never as endpoints.** A route that posts a
+  document on request is a backdoor around the posting transaction; a debug flag guarding it just
+  ships the backdoor with the flag.
 
 **Supply-chain notes carried forward.** `uv` has neither an Authenticode signature nor a
 PEP 740 attestation. `fastapi[standard]` pulls `sentry-sdk` transitively — inert without a
@@ -1241,11 +1245,14 @@ attestation and no `repository` field; every other dependency added since does.
 `pnpm install` reports `Lockfile passes supply-chain policies`.
 
 **Next, in this order:**
-1. Merge into `main`. `gh` is unauthenticated, so this is a browser action; merging `phase-3`
-   alone is sufficient because it already contains phases 1 and 2:
-   https://github.com/UkrAndy/shop-crm/pull/new/phase-3
+1. Merge into `main`. `gh` is unauthenticated, so this is a browser action; merging `phase-4`
+   alone is sufficient because it already contains phases 1–3:
+   https://github.com/UkrAndy/shop-crm/pull/new/phase-4
 2. `gh auth login` in a **new** terminal, then publish these 26 issues as milestones/issues
    if GitHub tracking is still wanted.
-3. Start Milestone 4 at **Issue 14** — warehouse and counterparty stubs. They exist only to make
-   a goods receipt valid; the temptation to grow them into real modules is the thing to resist,
-   since the PRD puts contracts and counterparty statistics out of scope.
+3. Start Milestone 5 at **Issue 18** — batch, movement and audit models. Phase 5 is the
+   correctness core of the whole tracer bullet and the most demanding phase in the plan: the
+   posting command must create a batch, a movement and an audit record in **one** transaction,
+   be idempotent under a replayed `Idempotency-Key`, and survive concurrent posts. Issue 20's
+   note that an injected failure must leave *zero* batches and *zero* movements is the criterion
+   to design toward from the start, not to retrofit.
