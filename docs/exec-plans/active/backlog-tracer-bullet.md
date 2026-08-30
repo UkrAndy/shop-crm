@@ -797,6 +797,8 @@ the OpenAPI contract is unchanged, as expected for an issue that adds no endpoin
 
 ### Issue 15 — `P4: Goods receipt document models`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Scope.**
 - `GoodsReceipt`: `id`, `organization_id`, `warehouse_id`, `counterparty_id`,
   `status` (`draft`|`posted`), `version`, `created_by`, `created_at`.
@@ -813,6 +815,36 @@ the OpenAPI contract is unchanged, as expected for an issue that adds no endpoin
 **Tests.** Constraint tests: non-positive quantity rejected by the database, not only by Pydantic.
 
 **Out of scope.** Posting logic, batches, movements.
+
+**`VARCHAR` + `CHECK`, not a native `ENUM`.** The criterion asks for a constraint at the
+database level, and both satisfy it; the difference is what happens when the set of statuses
+changes. `ALTER TYPE … ADD VALUE` cannot run inside a transaction block against a pre-existing
+type, so a native enum turns every future status into an awkward migration, while the `CHECK` is
+a one-line rewrite. Two tests hold it from both sides: raw SQL setting `status = 'approved'` is
+rejected, and every value the Python enum declares is accepted — a constraint *narrower* than the
+enum would fail a legitimate transition in production.
+
+**Other decisions:**
+
+| Decision | Reason |
+|---|---|
+| `cascade="all, delete-orphan"` on `lines`, plus `ON DELETE CASCADE` | Editing a draft replaces its lines. One that lingered after being removed would be counted at posting time and quietly inflate the stock, so both the ORM and the database delete it. |
+| `created_by` is `ON DELETE RESTRICT` | Audit needs an actor. A posted document must not vanish because somebody removed the user who entered it. |
+| `quantity > 0`, not `>= 0` | A zero-quantity line means nothing arrived — a line that should not exist. |
+| The same product may appear on **two** lines | Price is per line, so one delivery bringing the same product at two prices is a real case, not a mistake to prevent. |
+| **No stored line total** | `quantity × purchase_price` is a second source of truth that can only agree with its inputs or be wrong, and the arithmetic is cheap. Asserted by a test. |
+
+**Considered and deferred.** Cross-tenant safety on lines — a denormalised `organization_id` plus
+a composite foreign key to `products (organization_id, id)` — would make it impossible to attach
+another organization's product to a receipt at the database level. It is a genuine improvement
+but a design change beyond this issue's stated columns, so the guard lives in the service layer
+(Issue 16) and this note records the alternative rather than smuggling it in.
+
+**Verification (2026-08-30).** Test-first, RED confirmed; **17 passed** for this issue,
+**129** across the suite. `ruff` / `ruff format --check` clean · `pyright` 0 errors, strict ·
+`alembic check` clean · downgrade and back proven · `\d goods_receipt_lines` confirms both CHECK
+constraints, `numeric(14,2)`, and `ON DELETE CASCADE` from the receipt with `RESTRICT` to the
+product.
 
 ---
 
@@ -1046,7 +1078,7 @@ commands produced the evidence, and every known limitation.
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
-| 4 | Goods Receipt Draft & Edit | 14–17 | 1 of 4 done |
+| 4 | Goods Receipt Draft & Edit | 14–17 | 2 of 4 done |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
 | 6 | Stock Balance Query | 23–24 | Not started |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |
