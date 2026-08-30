@@ -73,6 +73,9 @@ def line(scene: Scene, **overrides: object) -> GoodsReceiptLine:
     values: dict[str, object] = {
         "receipt_id": scene.receipt.id,
         "product_id": scene.product.id,
+        # Explicit: line order is data, and two lines on one document may not
+        # share a slot. Tests that add more than one pass their own.
+        "position": 0,
         "quantity": 10,
         "purchase_price": Decimal("100.00"),
     }
@@ -149,15 +152,49 @@ def test_line_price_keeps_kopiyka_precision(db_session: Session, scene: Scene) -
 def test_the_same_product_may_appear_on_two_lines(db_session: Session, scene: Scene) -> None:
     # Price is per line, so the same product arriving at two different prices in
     # one delivery is a real case, not a mistake to prevent.
-    db_session.add(line(scene, purchase_price=Decimal("100.00")))
-    db_session.add(line(scene, purchase_price=Decimal("110.00")))
+    db_session.add(line(scene, position=0, purchase_price=Decimal("100.00")))
+    db_session.add(line(scene, position=1, purchase_price=Decimal("110.00")))
 
     db_session.flush()
 
 
+def test_two_lines_may_not_share_a_position(db_session: Session, scene: Scene) -> None:
+    """Otherwise the document's order is ambiguous and it reads back differently
+    from how it was entered.
+
+    The constraint is `DEFERRABLE INITIALLY DEFERRED`, so PostgreSQL normally
+    checks it at `COMMIT` — which this fixture never reaches, since the whole
+    test runs inside a transaction that is rolled back. `SET CONSTRAINTS ALL
+    IMMEDIATE` asks for the check now, which is how a deferred constraint is
+    tested at all.
+    """
+    db_session.add(line(scene, position=0))
+    db_session.flush()
+    db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
+
+    db_session.add(line(scene, position=0, quantity=5))
+
+    with pytest.raises(IntegrityError):
+        db_session.flush()
+
+
+def test_lines_come_back_in_position_order(db_session: Session, scene: Scene) -> None:
+    """`created_at` cannot do this job.
+
+    `now()` is the transaction timestamp in PostgreSQL, so every line of one
+    document shares it exactly and ordering by it returns them arbitrarily.
+    """
+    db_session.add(line(scene, position=1, quantity=20))
+    db_session.add(line(scene, position=0, quantity=10))
+    db_session.flush()
+    db_session.refresh(scene.receipt)
+
+    assert [item.quantity for item in scene.receipt.lines] == [10, 20]
+
+
 def test_deleting_the_receipt_removes_its_lines(db_session: Session, scene: Scene) -> None:
-    db_session.add(line(scene))
-    db_session.add(line(scene, quantity=5))
+    db_session.add(line(scene, position=0))
+    db_session.add(line(scene, position=1, quantity=5))
     db_session.flush()
 
     db_session.delete(scene.receipt)

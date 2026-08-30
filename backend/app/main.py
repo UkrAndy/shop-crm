@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, health, organizations, products
+from app.api.v1 import auth, goods_receipts, health, organizations, products
 from app.core.config import get_settings
 from app.core.errors import documented, register_exception_handlers
 
@@ -36,3 +36,5 @@ app.include_router(health.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(organizations.router, prefix="/api/v1")
 app.include_router(products.router, prefix="/api/v1")
+app.include_router(goods_receipts.router, prefix="/api/v1")
+app.include_router(goods_receipts.counterparties_router, prefix="/api/v1")

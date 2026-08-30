@@ -13,9 +13,10 @@ from decimal import Decimal
 
 from sqlalchemy import (
     CheckConstraint,
+    Enum,
     ForeignKey,
     Integer,
-    String,
+    UniqueConstraint,
     func,
     text,
 )
@@ -30,12 +31,34 @@ class ReceiptStatus(enum.StrEnum):
     POSTED = "posted"
 
 
-# A `VARCHAR` plus a `CHECK`, not a PostgreSQL native `ENUM`. Both are enforced
-# by the database, which is what the requirement asks for; the difference is
-# what happens when the set changes. `ALTER TYPE ... ADD VALUE` cannot run inside
-# a transaction block against a pre-existing type, so a native enum turns every
-# future status into an awkward migration. The CHECK is a one-line rewrite.
-_STATUS_VALUES = ", ".join(f"'{status.value}'" for status in ReceiptStatus)
+# `native_enum=False` renders `VARCHAR(16)` rather than a PostgreSQL `ENUM`
+# type: `ALTER TYPE ... ADD VALUE` cannot run inside a transaction block against
+# a pre-existing type, so a native enum would turn every future status into an
+# awkward migration.
+#
+# The type's job here is **conversion** — a plain `String` column typed
+# `Mapped[ReceiptStatus]` hands back a bare `str` after a round trip through the
+# database, so `status is ReceiptStatus.DRAFT` is quietly False and the
+# annotation is a lie. `values_callable` is load-bearing too: without it
+# SQLAlchemy stores the member *names* (`DRAFT`) instead of the values.
+#
+# `create_constraint=False` on purpose. SQLAlchemy would add the CHECK through a
+# DDL event that never appears in `Table.constraints`, and Alembic's
+# check-constraint comparison then reports it as an orphan on every run. The
+# constraint is declared explicitly below instead, where autogenerate can see it.
+def _status_values(enum_cls: type[ReceiptStatus]) -> list[str]:
+    return [member.value for member in enum_cls]
+
+
+_STATUS = Enum(
+    ReceiptStatus,
+    native_enum=False,
+    create_constraint=False,
+    length=16,
+    values_callable=_status_values,
+)
+
+_STATUS_VALUES = ", ".join(f"'{member.value}'" for member in ReceiptStatus)
 
 
 class GoodsReceipt(Base):
@@ -62,7 +85,7 @@ class GoodsReceipt(Base):
     )
 
     status: Mapped[ReceiptStatus] = mapped_column(
-        String(16), default=ReceiptStatus.DRAFT, server_default=ReceiptStatus.DRAFT.value
+        _STATUS, default=ReceiptStatus.DRAFT, server_default=ReceiptStatus.DRAFT.value
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
 
@@ -77,7 +100,7 @@ class GoodsReceipt(Base):
         # lingered after being removed would be counted at posting time and
         # quietly inflate the stock.
         cascade="all, delete-orphan",
-        order_by="GoodsReceiptLine.created_at",
+        order_by="GoodsReceiptLine.position",
     )
 
     __mapper_args__ = {"version_id_col": version}
@@ -96,6 +119,17 @@ class GoodsReceiptLine(Base):
         # arrived, which is a line that should not exist.
         CheckConstraint("quantity > 0", name="ck_goods_receipt_lines_quantity_positive"),
         CheckConstraint("purchase_price >= 0", name="ck_goods_receipt_lines_price_non_negative"),
+        CheckConstraint("position >= 0", name="ck_goods_receipt_lines_position_non_negative"),
+        # DEFERRABLE because replacing a document's lines inserts the new set
+        # before deleting the old one within a single flush; checking at commit
+        # lets that pass while still refusing two lines to claim one slot.
+        UniqueConstraint(
+            "receipt_id",
+            "position",
+            name="uq_goods_receipt_lines_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID_PK, primary_key=True, default=uuid.uuid4)
@@ -103,6 +137,11 @@ class GoodsReceiptLine(Base):
         ForeignKey("goods_receipts.id", ondelete="CASCADE"), index=True
     )
     product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"))
+
+    # Line order is *data*, not an accident of insertion time. `now()` is the
+    # transaction timestamp in PostgreSQL, so every line of one document shares
+    # it — ordering by `created_at` would return them in arbitrary order.
+    position: Mapped[int] = mapped_column(Integer)
 
     # Whole units (PRD: «кількість — ціле»).
     quantity: Mapped[int] = mapped_column(Integer)

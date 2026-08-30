@@ -64,6 +64,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/counterparties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Counterparties */
+        get: operations["list_counterparties_api_v1_counterparties_get"];
+        put?: never;
+        /**
+         * Create Counterparty
+         * @description Minimal supplier creation — a name and nothing else (PRD §In Scope).
+         */
+        post: operations["create_counterparty_api_v1_counterparties_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/goods-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Receipts */
+        get: operations["list_receipts_api_v1_goods_receipts_get"];
+        put?: never;
+        /** Create Receipt */
+        post: operations["create_receipt_api_v1_goods_receipts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/goods-receipts/{receipt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Receipt */
+        get: operations["read_receipt_api_v1_goods_receipts__receipt_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Receipt
+         * @description Edit a draft. A posted document answers 409 under any payload.
+         */
+        patch: operations["update_receipt_api_v1_goods_receipts__receipt_id__patch"];
+        trace?: never;
+    };
     "/api/v1/health/live": {
         parameters: {
             query?: never;
@@ -192,6 +252,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** CounterpartyCreate */
+        CounterpartyCreate: {
+            /** Name */
+            name: string;
+        };
+        /** CounterpartyPublic */
+        CounterpartyPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /** ErrorBody */
         ErrorBody: {
             /** Code */
@@ -211,6 +286,158 @@ export interface components {
             field: string;
             /** Message */
             message: string;
+        };
+        /** GoodsReceiptCreate */
+        GoodsReceiptCreate: {
+            /**
+             * Counterparty Id
+             * Format: uuid
+             */
+            counterparty_id: string;
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["GoodsReceiptLineInput"][];
+        };
+        /** GoodsReceiptLineInput */
+        GoodsReceiptLineInput: {
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Purchase Price */
+            purchase_price: number | string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** GoodsReceiptLinePublic */
+        GoodsReceiptLinePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Line Total */
+            line_total: string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Purchase Price */
+            purchase_price: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** GoodsReceiptPage */
+        GoodsReceiptPage: {
+            /** Items */
+            items: components["schemas"]["GoodsReceiptSummary"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /** GoodsReceiptPublic */
+        GoodsReceiptPublic: {
+            /**
+             * Counterparty Id
+             * Format: uuid
+             */
+            counterparty_id: string;
+            /** Counterparty Name */
+            counterparty_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Created By Email */
+            created_by_email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lines */
+            lines: components["schemas"]["GoodsReceiptLinePublic"][];
+            status: components["schemas"]["ReceiptStatus"];
+            /** Total */
+            total: string;
+            /** Version */
+            version: number;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /**
+         * GoodsReceiptSummary
+         * @description Everything the list page shows, so a table needs no call per row.
+         */
+        GoodsReceiptSummary: {
+            /**
+             * Counterparty Id
+             * Format: uuid
+             */
+            counterparty_id: string;
+            /** Counterparty Name */
+            counterparty_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Created By Email */
+            created_by_email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ReceiptStatus"];
+            /** Total */
+            total: string;
+            /** Version */
+            version: number;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /**
+         * GoodsReceiptUpdate
+         * @description Partial update guarded by the version the client last saw.
+         *
+         *     `lines` distinguishes **absent** from **empty**: omitting it leaves the
+         *     document's lines alone, while sending `[]` clears them. Collapsing the two
+         *     would let a supplier change silently wipe a delivery.
+         */
+        GoodsReceiptUpdate: {
+            /** Counterparty Id */
+            counterparty_id?: string | null;
+            /** Lines */
+            lines?: components["schemas"]["GoodsReceiptLineInput"][] | null;
+            /** Version */
+            version: number;
         };
         /** LivenessResponse */
         LivenessResponse: {
@@ -321,6 +548,11 @@ export interface components {
              */
             status: "ok" | "degraded";
         };
+        /**
+         * ReceiptStatus
+         * @enum {string}
+         */
+        ReceiptStatus: "draft" | "posted";
         /** SessionPublic */
         SessionPublic: {
             /** Active Organization Id */
@@ -451,6 +683,325 @@ export interface operations {
             };
             /** @description Not authenticated */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_counterparties_api_v1_counterparties_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterpartyPublic"][];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Outside the caller's organization scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_counterparty_api_v1_counterparties_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CounterpartyCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterpartyPublic"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Outside the caller's organization scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_receipts_api_v1_goods_receipts_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoodsReceiptPage"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Outside the caller's organization scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_receipt_api_v1_goods_receipts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoodsReceiptCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoodsReceiptPublic"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Outside the caller's organization scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    read_receipt_api_v1_goods_receipts__receipt_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoodsReceiptPublic"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Outside the caller's organization scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_receipt_api_v1_goods_receipts__receipt_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoodsReceiptUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoodsReceiptPublic"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Outside the caller's organization scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

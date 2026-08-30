@@ -1,6 +1,41 @@
 {
   "components": {
     "schemas": {
+      "CounterpartyCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CounterpartyCreate",
+        "type": "object"
+      },
+      "CounterpartyPublic": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CounterpartyPublic",
+        "type": "object"
+      },
       "ErrorBody": {
         "properties": {
           "code": {
@@ -61,6 +96,315 @@
           "message"
         ],
         "title": "FieldError",
+        "type": "object"
+      },
+      "GoodsReceiptCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "counterparty_id": {
+            "format": "uuid",
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "lines": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GoodsReceiptLineInput"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "counterparty_id"
+        ],
+        "title": "GoodsReceiptCreate",
+        "type": "object"
+      },
+      "GoodsReceiptLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "purchase_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,15}0*$)\\d{0,12}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Purchase Price"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000000.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "quantity",
+          "purchase_price"
+        ],
+        "title": "GoodsReceiptLineInput",
+        "type": "object"
+      },
+      "GoodsReceiptLinePublic": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "line_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "purchase_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Purchase Price",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "product_name",
+          "quantity",
+          "purchase_price",
+          "line_total"
+        ],
+        "title": "GoodsReceiptLinePublic",
+        "type": "object"
+      },
+      "GoodsReceiptPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GoodsReceiptSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "GoodsReceiptPage",
+        "type": "object"
+      },
+      "GoodsReceiptPublic": {
+        "properties": {
+          "counterparty_id": {
+            "format": "uuid",
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "counterparty_name": {
+            "title": "Counterparty Name",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "created_by_email": {
+            "title": "Created By Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/GoodsReceiptLinePublic"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReceiptStatus"
+          },
+          "total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "version",
+          "counterparty_id",
+          "counterparty_name",
+          "warehouse_id",
+          "created_by",
+          "created_by_email",
+          "created_at",
+          "total",
+          "lines"
+        ],
+        "title": "GoodsReceiptPublic",
+        "type": "object"
+      },
+      "GoodsReceiptSummary": {
+        "description": "Everything the list page shows, so a table needs no call per row.",
+        "properties": {
+          "counterparty_id": {
+            "format": "uuid",
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "counterparty_name": {
+            "title": "Counterparty Name",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "created_by_email": {
+            "title": "Created By Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReceiptStatus"
+          },
+          "total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "version",
+          "counterparty_id",
+          "counterparty_name",
+          "warehouse_id",
+          "created_by",
+          "created_by_email",
+          "created_at",
+          "total"
+        ],
+        "title": "GoodsReceiptSummary",
+        "type": "object"
+      },
+      "GoodsReceiptUpdate": {
+        "additionalProperties": false,
+        "description": "Partial update guarded by the version the client last saw.\n\n`lines` distinguishes **absent** from **empty**: omitting it leaves the\ndocument's lines alone, while sending `[]` clears them. Collapsing the two\nwould let a supplier change silently wipe a delivery.",
+        "properties": {
+          "counterparty_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Id"
+          },
+          "lines": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GoodsReceiptLineInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lines"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "GoodsReceiptUpdate",
         "type": "object"
       },
       "LivenessResponse": {
@@ -353,6 +697,14 @@
         "title": "ReadinessResponse",
         "type": "object"
       },
+      "ReceiptStatus": {
+        "enum": [
+          "draft",
+          "posted"
+        ],
+        "title": "ReceiptStatus",
+        "type": "string"
+      },
       "SessionPublic": {
         "properties": {
           "active_organization_id": {
@@ -534,6 +886,411 @@
         "summary": "Read Current Session",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/counterparties": {
+      "get": {
+        "operationId": "list_counterparties_api_v1_counterparties_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CounterpartyPublic"
+                  },
+                  "title": "Response List Counterparties Api V1 Counterparties Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Outside the caller's organization scope"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          }
+        },
+        "summary": "List Counterparties",
+        "tags": [
+          "counterparties"
+        ]
+      },
+      "post": {
+        "description": "Minimal supplier creation — a name and nothing else (PRD §In Scope).",
+        "operationId": "create_counterparty_api_v1_counterparties_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CounterpartyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterpartyPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Outside the caller's organization scope"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflicts with the current state"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Create Counterparty",
+        "tags": [
+          "counterparties"
+        ]
+      }
+    },
+    "/api/v1/goods-receipts": {
+      "get": {
+        "operationId": "list_receipts_api_v1_goods_receipts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoodsReceiptPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Outside the caller's organization scope"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          }
+        },
+        "summary": "List Receipts",
+        "tags": [
+          "goods-receipts"
+        ]
+      },
+      "post": {
+        "operationId": "create_receipt_api_v1_goods_receipts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoodsReceiptCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoodsReceiptPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Outside the caller's organization scope"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Create Receipt",
+        "tags": [
+          "goods-receipts"
+        ]
+      }
+    },
+    "/api/v1/goods-receipts/{receipt_id}": {
+      "get": {
+        "operationId": "read_receipt_api_v1_goods_receipts__receipt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoodsReceiptPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Outside the caller's organization scope"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Read Receipt",
+        "tags": [
+          "goods-receipts"
+        ]
+      },
+      "patch": {
+        "description": "Edit a draft. A posted document answers 409 under any payload.",
+        "operationId": "update_receipt_api_v1_goods_receipts__receipt_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoodsReceiptUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoodsReceiptPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Outside the caller's organization scope"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflicts with the current state"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Update Receipt",
+        "tags": [
+          "goods-receipts"
         ]
       }
     },

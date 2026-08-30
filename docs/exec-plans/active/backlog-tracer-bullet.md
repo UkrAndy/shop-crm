@@ -850,6 +850,8 @@ product.
 
 ### Issue 16 — `P4: Goods receipt draft API`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Scope.**
 - `POST /api/v1/goods-receipts` (create draft), `GET /api/v1/goods-receipts/{id}`,
   `GET /api/v1/goods-receipts` (list), `PATCH /api/v1/goods-receipts/{id}` (edit lines).
@@ -865,6 +867,56 @@ product.
 **Tests.** Draft lifecycle, stale version, edit-after-post rejection.
 
 **Out of scope.** The `/post` command.
+
+**Three defects this issue's tests found in Issue 15's models.** All three were invisible to
+inspection and only appeared once real requests ran:
+
+1. **`status` came back as a bare `str`.** `Mapped[ReceiptStatus]` over a plain `String(16)`
+   column does no conversion, so after a round trip `receipt.status is ReceiptStatus.DRAFT` was
+   quietly `False` — and the first `PATCH` answered `receipt_not_draft` for a document that was a
+   draft. The annotation had been a lie. Fixed with `sa.Enum(native_enum=False)`, whose job here
+   is conversion; `values_callable` is load-bearing too, or SQLAlchemy stores the member *names*.
+   `create_constraint=False` on purpose: SQLAlchemy would add the CHECK through a DDL event that
+   never appears in `Table.constraints`, and Alembic's check-constraint comparison then reports it
+   as an orphan on every run. The constraint is declared explicitly where autogenerate can see it.
+2. **Lines had no order.** They were ordered by `created_at`, but `now()` is the *transaction*
+   timestamp in PostgreSQL, so every line of one document shares it exactly — the order was
+   arbitrary, always. Line order is data: a `position` column now carries it, with a
+   `DEFERRABLE INITIALLY DEFERRED` unique constraint on `(receipt_id, position)`, deferred
+   because replacing a document's lines inserts the new set before deleting the old one inside a
+   single flush.
+3. **Replacing lines did not bump `version`.** `version_id_col` increments only when the *parent
+   row* is updated, and a collection change does not touch it. Two users could therefore rewrite
+   the same draft's lines concurrently and both be told they won — a lost update on the
+   document's actual contents, which is precisely what the version token exists to prevent. The
+   service now flags the row dirty so the `UPDATE` carrying the version check is issued.
+
+The Issue 15 revision was regenerated rather than patched by a follow-up migration: it had never
+run anywhere but a development database, and a migration whose only purpose is to fix a defect
+introduced twenty minutes earlier on an unmerged branch is noise for a reviewer.
+
+**API decisions:**
+
+| Decision | Reason |
+|---|---|
+| `lines` distinguishes **absent** from **empty** | Omitting it leaves the document alone; `[]` clears it. Collapsing the two would let a supplier change silently wipe a delivery. |
+| The warehouse is resolved **server-side** | An organization has exactly one, so letting the client name it would only create a way to get it wrong. |
+| `total` and `line_total` are computed by the server | JavaScript has no decimal type. A total computed in the browser is a total that can be off by a kopiyka, and it is displayed next to money. |
+| A posted document answers **409 `receipt_not_draft`** | Not 403: the caller has every right to it and the payload is fine — the document's *state* refuses. Tested under four different payloads, including an empty one. |
+| An unresolvable product is **422 `unknown_product`** | A foreign product and a nonexistent one give the same answer, because the lookup is scoped and never learns which it was. |
+| A duplicate supplier name is **409 `counterparty_name_taken`** | Well-formed payload, rejected by current state. |
+
+**Scope note.** `GET`/`POST /api/v1/counterparties` were added, which the issue does not list.
+Issue 17's supplier picker cannot be populated — or the flow exercised at all — without them, and
+creation is a name and nothing else, exactly as the PRD scopes it.
+
+**Verification (2026-08-30).** Test-first, RED confirmed; **31 passed** for this issue and
+**162** across the suite, stable over three consecutive runs. `ruff` / `ruff format --check`
+clean (50 files) · `pyright` 0 errors, strict · `alembic check` clean · contract regenerated,
+`pnpm typecheck` and `pnpm lint` clean against it.
+
+The atomicity criterion is tested as written: a `PATCH` whose second line names an unknown
+product returns 422, and a follow-up `GET` shows the original line and version untouched.
 
 ---
 
@@ -1078,7 +1130,7 @@ commands produced the evidence, and every known limitation.
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
-| 4 | Goods Receipt Draft & Edit | 14–17 | 2 of 4 done |
+| 4 | Goods Receipt Draft & Edit | 14–17 | 3 of 4 done |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
 | 6 | Stock Balance Query | 23–24 | Not started |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |
