@@ -979,6 +979,8 @@ Goal: the core correctness claim of the whole tracer bullet.
 
 ### Issue 18 — `P5: Batch, movement, and audit models`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Scope.**
 - `InventoryBatch`, `StockMovement`, `AuditLog` models + migration.
 - `StockMovement` is append-only: no update or delete path is exposed anywhere in the codebase.
@@ -991,6 +993,37 @@ Goal: the core correctness claim of the whole tracer bullet.
 **Modules.** `backend/app/models/{inventory,audit}.py`.
 
 **Tests.** Schema assertions; index presence.
+
+**Append-only is a database trigger, not a convention.** Research §386 asks for immutability
+"by application policy and database constraints where practical" — and a policy only binds code
+that has read it, which a migration, a `psql` fix-up or a future service has not. A `BEFORE
+UPDATE OR DELETE` trigger on `stock_movements` and `audit_log` raises `restrict_violation`, and
+two tests prove it by attempting the `UPDATE` in raw SQL. A third scans `app/` to confirm no
+code path even tries — the trigger stops the database accepting it; that test stops a developer
+writing something that would fail in production.
+
+**Consequence, stated deliberately:** because the trigger also refuses `DELETE`, removing an
+organization that has posted history now fails. That is the correct answer for an audit trail,
+and it means tenant deletion becomes a conscious operation rather than a side effect of one row
+disappearing.
+
+**Other decisions:**
+
+| Decision | Reason |
+|---|---|
+| `quantity_delta` is **signed**, with `CHECK (<> 0)` | The sign is the mechanism: balance is `SUM(quantity_delta)` over the scope. Sales are out of scope for this slice, but the column is not — forbidding negatives now would mean rebuilding it later. A zero row only pollutes an aggregation it contributes nothing to. |
+| `document_id` and `audit_log.entity_id` are **not** foreign keys | The causing document may later be a sale, a transfer or an adjustment, and history must not depend on which table it lives in. An audit trail that vanishes with its subject is not an audit trail. |
+| `CHECK (remaining_quantity BETWEEN 0 AND quantity)` | More left than ever arrived is a state the database should refuse to hold, not one to detect later. |
+| The batch keeps its own `purchase_price` | FIFO cost, in a later phase, depends on the price the goods *arrived* at, not on today's catalog price. |
+| `audit_log.old_value` / `new_value` nullable | A creation has no "before". Requiring both would push callers into writing `{}` and losing the distinction between "nothing" and "empty". |
+| `actor_id` is `ON DELETE RESTRICT` | An action whose actor has been erased is unattributable, which defeats the point of recording it. |
+
+**Verification (2026-08-30).** Test-first, RED confirmed; **18 passed** for this issue and
+**180** across the suite. `ruff` / `ruff format --check` clean (54 files) · `pyright` 0 errors,
+strict · `alembic check` clean · downgrade and back proven, **including the triggers**, which
+`information_schema.triggers` confirms are re-created as `DELETE,UPDATE` on both tables.
+The index acceptance criterion is checked against the reflected schema rather than the model:
+`('organization_id', 'warehouse_id', 'product_id')` is present on `stock_movements`.
 
 ---
 
@@ -1166,7 +1199,7 @@ commands produced the evidence, and every known limitation.
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | ✅ 4 of 4 done |
-| 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
+| 5 | Posting — Idempotency & Atomicity | 18–22 | 1 of 5 done |
 | 6 | Stock Balance Query | 23–24 | Not started |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |
 
