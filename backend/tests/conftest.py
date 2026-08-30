@@ -16,12 +16,18 @@ that makes Phase 2 verifiable.
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session, sessionmaker
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
+
+    from app.models.identity import Organization, User
 
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
@@ -95,7 +101,15 @@ def db_session(migrated_database: None) -> Iterator[Session]:
     engine: Engine = app_engine
     connection = engine.connect()
     transaction = connection.begin()
-    session = sessionmaker(bind=connection, autoflush=False, expire_on_commit=False)()
+    # `create_savepoint` lets the service layer call `commit()` for real without
+    # ending the outer transaction, so production code is exercised unmodified
+    # and the test still rolls back.
+    session = sessionmaker(
+        bind=connection,
+        autoflush=False,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )()
 
     try:
         yield session
@@ -106,3 +120,58 @@ def db_session(migrated_database: None) -> Iterator[Session]:
         if transaction.is_active:
             transaction.rollback()
         connection.close()
+
+
+@pytest.fixture
+def client(db_session: Session) -> Iterator[TestClient]:
+    """A TestClient whose requests run inside the test's rolled-back transaction."""
+    from fastapi.testclient import TestClient
+
+    from app.core.db import get_session
+    from app.main import app
+
+    app.dependency_overrides[get_session] = lambda: db_session
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
+
+
+TEST_PASSWORD = "correct horse battery staple"
+
+
+@pytest.fixture
+def user_factory(db_session: Session) -> Callable[..., User]:
+    """Creates an active user with `TEST_PASSWORD`, optionally in organizations."""
+    from app.core.security import hash_password
+    from app.models.identity import Membership
+    from app.models.identity import User as UserModel
+
+    def create(email: str, *organizations: Organization, is_active: bool = True) -> UserModel:
+        user = UserModel(
+            email=email.lower(),
+            password_hash=hash_password(TEST_PASSWORD),
+            is_active=is_active,
+        )
+        db_session.add(user)
+        db_session.flush()
+        for organization in organizations:
+            db_session.add(Membership(user_id=user.id, organization_id=organization.id))
+        db_session.flush()
+        return user
+
+    return create
+
+
+@pytest.fixture
+def organization_factory(db_session: Session) -> Callable[[str], Organization]:
+    from app.models.identity import Organization as OrganizationModel
+
+    def create(name: str) -> OrganizationModel:
+        organization = OrganizationModel(name=name)
+        db_session.add(organization)
+        db_session.flush()
+        return organization
+
+    return create

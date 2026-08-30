@@ -96,14 +96,18 @@ design so a future change cannot silently cross it.
 
 ## 5. Data model
 
-Three tables in this issue. `sessions` follows in Issue 7 with the login endpoint that creates
-rows in it — no table lands before the code that uses it.
+Three tables landed in Issue 6; `sessions` followed in Issue 7 alongside the login endpoint that
+writes to it — no table lands before the code that uses it.
 
 ```
 users(id, email UNIQUE, password_hash, is_active, created_at)
 organizations(id, name, created_at)
 memberships(id, user_id → users, organization_id → organizations, created_at)
     UNIQUE (user_id, organization_id)
+sessions(id, user_id → users, token_hash UNIQUE,
+         active_organization_id → organizations NULL,
+         created_at, last_used_at, expires_at,
+         user_agent, ip_address)
 ```
 
 - **`email` is stored lowercased** and carries a unique constraint. Case-preserving storage plus
@@ -116,6 +120,21 @@ memberships(id, user_id → users, organization_id → organizations, created_at
   single-company/multi-FOP, so one user legitimately belongs to several organizations.
 - **No role column.** The PRD puts full RBAC out of scope and states one role suffices for this
   slice. Adding an unused column now would invite code to depend on a shape we have not designed.
+- **`sessions.active_organization_id` is the scope, and it lives on the server.** A client names
+  a candidate in the request body; membership decides. It is re-checked against `memberships` on
+  every request rather than trusted from the row, so revoking a membership takes effect on the
+  next request instead of at session expiry — the row caches an id, never a permission.
+  `ON DELETE SET NULL`: deleting an organization must not delete its users' sessions.
+- **`user_agent` and `ip_address`** satisfy research §621's session/device audit requirement.
+  Recorded now, surfaced when a device-management view exists.
+
+### Selecting the active organization
+
+A user with **exactly one** membership has it selected at login: there is nothing to choose, so
+a mandatory round-trip would be ceremony. With **two or more** the server does not guess and
+returns `null`; scoped endpoints then answer `403 no_active_organization` until the client
+chooses. Guessing here would post documents into the wrong legal entity, which is precisely the
+error this system exists to prevent.
 
 ## 6. Error contract
 

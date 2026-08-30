@@ -1,8 +1,10 @@
-"""Password hashing.
+"""Password hashing and session tokens.
 
-Design: `docs/design-docs/design-auth.md` §7. Session handling joins this module
-in Issue 7; only the password primitives live here for now.
+Design: `docs/design-docs/design-auth.md` §7.
 """
+
+import hashlib
+import secrets
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
@@ -48,3 +50,22 @@ def password_needs_rehash(password_hash: str) -> bool:
 def verify_dummy_password(password: str) -> None:
     """Burn the cost of one verification for an email that has no account."""
     verify_password(_DUMMY_HASH, password)
+
+
+# 32 bytes = 256 bits. Guessing is not a threat model at that width.
+_SESSION_TOKEN_BYTES = 32
+
+
+def generate_session_token() -> str:
+    """A fresh session credential. Handed to the client once, never stored raw."""
+    return secrets.token_urlsafe(_SESSION_TOKEN_BYTES)
+
+
+def hash_session_token(token: str) -> str:
+    """Digest used as the lookup key for a session row.
+
+    SHA-256, not Argon2, and deliberately so: the token already carries 256 bits
+    of entropy, so there is no dictionary to slow down, while this runs on every
+    authenticated request. A slow hash here would buy nothing and cost latency.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

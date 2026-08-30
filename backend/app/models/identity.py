@@ -1,7 +1,6 @@
-"""Identity and organization scope.
+"""Identity, sessions and organization scope.
 
-Design: `docs/design-docs/design-auth.md`. The `sessions` table is deliberately
-absent — it lands in Issue 7 together with the login endpoint that writes to it.
+Design: `docs/design-docs/design-auth.md`.
 """
 
 from __future__ import annotations
@@ -108,3 +107,44 @@ class Membership(Base):
 
     user: Mapped[User] = relationship(back_populates="memberships")
     organization: Mapped[Organization] = relationship(back_populates="memberships")
+
+
+class UserSession(Base):
+    """A logged-in session.
+
+    Named `UserSession` rather than `Session` so it cannot be confused with
+    `sqlalchemy.orm.Session` at a call site; the table keeps the plain name.
+
+    The token is stored as a SHA-256 digest. Argon2 would be wrong here: the
+    token is 256 bits of entropy, so there is nothing to brute-force, and this
+    hash is computed on **every** authenticated request.
+    """
+
+    __tablename__ = "sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(_UUID_PK, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+
+    # Server-side, so a client cannot assert its own scope by editing a request
+    # body. Nulled rather than cascaded away if the organization disappears.
+    active_organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
+    )
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_used_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    # Absolute expiry. Never extended — only `last_used_at` slides.
+    expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+
+    # Session/device audit data (research §621). Recorded, not yet surfaced.
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+
+    user: Mapped[User] = relationship()

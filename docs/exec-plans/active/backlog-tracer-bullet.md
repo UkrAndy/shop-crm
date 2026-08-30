@@ -318,6 +318,8 @@ repository, including `uv` itself.
 
 ### Issue 7 — `P2: Login endpoint, session middleware, organization scope`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** PRD: every endpoint except `/auth/login` requires authentication, and organization
 membership must be enforced.
 
@@ -339,6 +341,55 @@ membership must be enforced.
 **Tests.** Integration: login success/failure, 401 on protected route, 403 cross-organization.
 
 **Out of scope.** Product/receipt endpoints.
+
+**Endpoints delivered.**
+
+| Endpoint | Notes |
+|---|---|
+| `POST /api/v1/auth/login` | The only unauthenticated endpoint in the API |
+| `POST /api/v1/auth/logout` | 204, idempotent |
+| `GET /api/v1/auth/me` | Current user + active organization |
+| `GET /api/v1/organizations` | Only the caller's own |
+| `GET /api/v1/organizations/active` | 403 when nothing is selected |
+| `POST /api/v1/organizations/active` | Body names a candidate; membership decides |
+
+**Scope note.** `logout` and `me` are not in the issue text. Issue 8's acceptance criteria
+("logging out clears session state", "reloading a protected page does not flash the login
+screen") cannot be met without them, and both are a handful of lines. Recorded rather than
+slipped in.
+
+**Design decisions taken here, folded back into `design-auth.md`:**
+- `sessions.active_organization_id` holds the scope **server-side**; it is re-checked against
+  `memberships` on every request, so revoking a membership takes effect on the next request
+  rather than at session expiry. `ON DELETE SET NULL` — deleting an organization must not
+  delete its users' sessions.
+- A user with exactly one membership gets it selected at login; with two or more the server
+  returns `null` and refuses to guess. A wrong guess would post documents into the wrong legal
+  entity.
+- Session tokens are SHA-256, **not** Argon2. The token already carries 256 bits of entropy, so
+  there is no dictionary to slow down, while the hash runs on every authenticated request.
+- Exception classes carry `status_code`/`code`/`message` and are translated once at the
+  boundary by `register_exception_handlers`, so routers never assemble error bodies. The
+  `documented(401, 403)` helper puts the envelope into the OpenAPI document, so the generated
+  TypeScript client knows the error shape rather than narrowing on an untyped body.
+
+**Verification (2026-08-30).**
+- **Test-first, RED confirmed:** the 28 new tests were written before the endpoints and ran
+  `27 failed, 1 passed`. After implementation the suite is **52 passed**, no warnings.
+- `ruff check` clean · `ruff format --check` 27 files · `pyright` 0 errors, strict ·
+  `alembic check` clean · `alembic downgrade -1` and back proven.
+- **Live smoke test over real HTTP** (uvicorn + curl, not only `TestClient`):
+  401/403/422 envelopes as documented; a wrong password and an unknown email return
+  byte-identical bodies; `Set-Cookie: HttpOnly; SameSite=lax` with no `Secure` locally;
+  login is case-insensitive on email; the stored `token_hash` is 64 hex characters and differs
+  from the cookie; `user_agent`/`ip_address` captured; logout deletes the row and the next
+  request is 401 with `sessions` empty.
+
+**Two problems the linters caught, fixed at the source rather than suppressed:**
+`starlette.status.HTTP_422_UNPROCESSABLE_ENTITY` is deprecated in favour of
+`…_UNPROCESSABLE_CONTENT`; and the exception classes needed the PEP 8 `Error` suffix (`N818`).
+Exception handlers were also moved from closures to module level — pyright counts a decorated
+nested function as unused, and module-level handlers are independently testable anyway.
 
 ---
 
@@ -743,7 +794,7 @@ commands produced the evidence, and every known limitation.
 | Milestone | Phase | Issues | Status |
 |-----------|-------|--------|--------|
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
-| 2 | Identity & Organizations | 6–9 | 1 of 4 done |
+| 2 | Identity & Organizations | 6–9 | 2 of 4 done |
 | 3 | Catalog (Products) | 10–13 | Not started |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
