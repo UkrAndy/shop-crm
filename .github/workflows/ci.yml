@@ -1,0 +1,179 @@
+name: CI
+
+on:
+  push:
+    # Phase branches are covered too: each phase must be green before its PR,
+    # which is the acceptance criterion the backlog states for this workflow.
+    branches: [main, 'phase-**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # Keyed on the source branch, so the push run and the pull_request run of the
+  # same commit collapse into one instead of billing twice.
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend — lint, types, tests, migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Must match docker-compose.yml: concurrency behaviour in Phases 5 and 7
+        # is only meaningful against the same PostgreSQL major.
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: testvasja
+          POSTGRES_PASSWORD: testvasja
+          POSTGRES_DB: testvasja
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testvasja -d testvasja"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Environment wins over backend/.env in pydantic-settings, and no .env
+      # exists on a clean checkout anyway.
+      DATABASE_URL: postgresql+psycopg://testvasja:testvasja@localhost:5432/testvasja
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Exact version, not a major alias: astral-sh/setup-uv stopped publishing
+      # moving major tags after v7, so `@v10` does not resolve.
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Typecheck (strict)
+        run: uv run pyright
+
+      - name: Tests
+        run: uv run pytest
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      # Fails when a model has no matching revision, which is the only automated
+      # guard against schema drift now that autogenerate is never run implicitly.
+      - name: Fail on model/migration drift
+        run: uv run alembic check
+
+  frontend:
+    name: Frontend — lint, types, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Reads the pnpm version from the root package.json "packageManager" field.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck (vue-tsc, strict)
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+  e2e:
+    name: E2E — full stack in a browser
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: testvasja
+          POSTGRES_PASSWORD: testvasja
+          POSTGRES_DB: testvasja
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testvasja -d testvasja"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://testvasja:testvasja@localhost:5432/testvasja
+      # NUXT_PUBLIC_API_BASE is deliberately NOT set. The default already points
+      # at localhost:8000, and the browser loads the app from localhost:3000 —
+      # the same site, which is what lets the SameSite=Lax session cookie work.
+      # Pointing the API at 127.0.0.1 makes it a different site and every login
+      # silently fails to stick.
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Both toolchains: the suite drives Nuxt, FastAPI and PostgreSQL together,
+      # which is the only way to test that the session cookie survives SSR.
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install backend
+        run: uv sync --locked
+        working-directory: backend
+
+      - name: Install frontend
+        run: pnpm install --frozen-lockfile
+
+      # Only Chromium: three engines would treble the runtime to re-test the
+      # same server-side behaviour. Cross-browser rendering is a separate concern
+      # from the flows under test here.
+      - name: Install Chromium
+        run: pnpm --filter @testvasja/frontend exec playwright install --with-deps chromium
+
+      # playwright.config.ts starts both servers and runs migrations and the
+      # seed in globalSetup, so there is nothing else to orchestrate here.
+      - name: Run E2E suite
+        run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

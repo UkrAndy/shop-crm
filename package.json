@@ -1,0 +1,17 @@
+{
+  "name": "testvasja",
+  "private": true,
+  "type": "module",
+  "description": "Workspace root. Pins the package manager and engine so local and CI installs match; application code lives in frontend/ and backend/.",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
+  },
+  "scripts": {
+    "lint": "pnpm --filter @testvasja/frontend lint",
+    "typecheck": "pnpm --filter @testvasja/frontend typecheck",
+    "build": "pnpm --filter @testvasja/frontend build",
+    "dev": "pnpm --filter @testvasja/frontend dev",
+    "test:e2e": "pnpm --filter @testvasja/frontend test:e2e"
+  }
+}

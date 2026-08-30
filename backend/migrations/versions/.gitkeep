@@ -1,0 +1,2 @@
+# Keeps the empty revisions directory in version control so Alembic works on a
+# clean checkout. The first revision lands in Phase 2 with the identity models.
