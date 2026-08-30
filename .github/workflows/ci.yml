@@ -88,7 +88,13 @@ jobs:
       - name: Fail on API contract drift
         run: |
           uv run python scripts/export_openapi.py openapi.json
-          git diff --exit-code -- openapi.json
+          if ! git diff --quiet -- openapi.json; then
+            # Emitted as an annotation so the reason is visible without opening
+            # the log. A guard that only says "exit 1" costs the next person an
+            # hour.
+            echo "::error::openapi.json is stale. Run 'pnpm api:generate' and commit.%0A$(git diff -- openapi.json | head -40 | sed 's/$/%0A/' | tr -d '\n')"
+            exit 1
+          fi
 
   frontend:
     name: Frontend — lint, types, build
@@ -172,7 +178,12 @@ jobs:
       # generated TypeScript can be regenerated and diffed against what was
       # committed.
       - name: Fail on generated-client drift
-        run: pnpm --filter @testvasja/frontend run api:check
+        run: |
+          pnpm --filter @testvasja/frontend run api:generate
+          if ! git diff --quiet -- backend/openapi.json frontend/shared/api/schema.d.ts; then
+            echo "::error::Generated contract is stale. Run 'pnpm api:generate' and commit.%0A$(git diff --stat -- backend/openapi.json frontend/shared/api/schema.d.ts | sed 's/$/%0A/' | tr -d '\n')$(git diff -- backend/openapi.json frontend/shared/api/schema.d.ts | head -40 | sed 's/$/%0A/' | tr -d '\n')"
+            exit 1
+          fi
 
       # Only Chromium: three engines would treble the runtime to re-test the
       # same server-side behaviour. Cross-browser rendering is a separate concern
