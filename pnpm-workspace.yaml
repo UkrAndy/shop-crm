@@ -1,0 +1,10 @@
+packages:
+  - frontend
+
+# pnpm refuses to run dependency install scripts unless they are listed here.
+# Every entry is a package explicitly allowed to execute code at install time,
+# so keep this list minimal and justified.
+allowBuilds:
+  esbuild: true # bundler, ships a platform binary
+  unrs-resolver: true # eslint import resolver, native binding
+  vue-demi: true # pinia dependency, selects the Vue 3 build at install time

@@ -82,6 +82,8 @@ under Issue 4 once Postgres is available.
 
 ### Issue 3 — `P1: Frontend scaffold — Nuxt 4 SSR baseline`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** The PRD requires SSR (`Out of Scope` explicitly defers offline mode; SSR is a
 stated technical constraint). The frontend must build and typecheck before any page work.
 
@@ -107,6 +109,33 @@ stated technical constraint). The frontend must build and typecheck before any p
 markup is the SSR evidence.
 
 **Out of scope.** Login, products, receipts pages; the generated OpenAPI client.
+
+**Decisions taken during implementation** (deviations from the text above, recorded rather
+than applied silently):
+
+| Decision | Reason |
+|---|---|
+| PrimeVue pinned to **4.5.5** (`@primevue/nuxt-module` 4.5.5, `@primeuix/themes` 1.2.5) | Latest is 5.0.1, but the backlog and research both specify major 4. Moving to 5 is a scope change, not an implementation detail. |
+| **TypeScript `~5.9.3`**, not the latest 7.0.2 | 7.x is the native-port rewrite. `vue-tsc` 3.3.11 declares peer `typescript >=5.0.0`, but the typecheck gate should not ride a brand-new major. |
+| **Zod dropped from this issue** | It is not in Issue 3 scope — it first appears in Issue 8 (login form validation). `zod@4.5.4` was also 1 day old and failed pnpm's release-age policy; installing an unused fresh dependency is unjustifiable. |
+| `pnpm-lock.yaml` **removed from `.gitignore`** | CI must install the exact tree that was audited. `uv.lock` was already committed; the two were inconsistent. |
+| `pnpm-workspace.yaml` uses `allowBuilds` | pnpm 11 replaced `onlyBuiltDependencies`. Three packages are allowed install-time scripts: `esbuild`, `unrs-resolver`, `vue-demi` — each annotated in the file. |
+
+**Provenance audit** (run before install, per the standing rule). SLSA provenance + npm
+registry signature present for: `nuxt`, `@nuxt/eslint`, `tailwindcss`, `@tailwindcss/vite`,
+`@tanstack/vue-query`, `pinia`, `@pinia/nuxt`, `vue-tsc`. Registry signature only, no
+provenance attestation: `eslint`, `typescript`. **Weakest link: `primevue` and
+`@primeuix/themes` — no provenance attestation and no `repository` field in npm metadata.**
+`pnpm install` reported `Lockfile passes supply-chain policies`.
+
+**Verification (2026-08-30).** `pnpm install` clean · `pnpm lint` clean · `pnpm typecheck`
+0 errors · `pnpm build` complete (6.79 MB, 1.51 MB gzip) · `curl` of both `pnpm dev` and the
+production preview returns `data-testid="render-origin">server` and the server-rendered
+PrimeVue button in the initial HTML · Tailwind 4 utilities present in the emitted stylesheet
+(`.text-2xl`, `.min-h-screen`) · `NUXT_PUBLIC_API_BASE` override reaches the rendered page.
+
+**Known peer warning.** `@bomb.sh/tab` wants `cac@^6.7.14`, tree has `7.0.0` — transitive
+dev-tooling of the Nuxt CLI, not ours to pin.
 
 ---
 
@@ -617,7 +646,7 @@ commands produced the evidence, and every known limitation.
 
 | Milestone | Phase | Issues | Status |
 |-----------|-------|--------|--------|
-| 1 | Repository Scaffold & Baseline | 1–5 | 2 of 5 done |
+| 1 | Repository Scaffold & Baseline | 1–5 | 3 of 5 done |
 | 2 | Identity & Organizations | 6–9 | Not started |
 | 3 | Catalog (Products) | 10–13 | Not started |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |

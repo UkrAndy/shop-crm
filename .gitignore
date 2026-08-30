@@ -18,11 +18,13 @@ draft/
 Thumbs.db
 ~$*
 
-# Node (when frontend scaffold is added)
+# Node
 node_modules/
-dist/
 .nuxt/
-pnpm-lock.yaml
+.output/
+.nitro/
+.data/
+# pnpm-lock.yaml IS committed: CI must install the exact tree that was audited.
 yarn.lock
 package-lock.json
 
