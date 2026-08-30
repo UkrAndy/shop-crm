@@ -1035,37 +1035,40 @@ commands produced the evidence, and every known limitation.
 | No CI run on the phase branch | Issue 5 acceptance criterion *"workflow passes"* | — | ✅ Resolved — run 33318800111 green on `3c58339` |
 | `gh auth login` is interactive (browser) | Publishing these 26 issues as GitHub milestones/issues; opening the Phase 1 PR from the CLI | User | ❌ Open — `gh` reports no logged-in host |
 
-## Resume here — state as of 2026-08-30, end of Phase 2
+## Resume here — state as of 2026-08-30, end of Phase 3
 
-**Branches.** `origin/main` is still at `f5e732c` — documents only. Everything built so far
-lives on two pushed branches, neither merged:
+**Branches.** `origin/main` is still at `f5e732c` — documents only. Each phase branch is stacked
+on the previous one, so the newest contains all the others:
 
 | Branch | Contains | CI |
 |---|---|---|
 | `phase-1` | Milestone 1, issues 1–5 | green |
-| `phase-2` | Milestone 2, issues 6–9 — branched off `phase-1`, so it contains Phase 1 too | green (3 jobs) |
+| `phase-2` | Milestone 2, issues 6–9 | green |
+| `phase-3` | Milestone 3, issues 10–13 — **contains phases 1 and 2** | green (3 jobs) |
 
-**Done: Milestones 1 and 2, issues 1–9.** Per-issue verification evidence is recorded under each
+**Done: Milestones 1–3, issues 1–13.** Per-issue verification evidence is recorded under each
 issue above rather than summarised here.
 
 | Gate | Result |
 |---|---|
-| `uv run ruff check .` / `ruff format --check .` | clean, 28 files |
+| `uv run ruff check .` / `ruff format --check .` | clean, 38 files |
 | `uv run pyright` | 0 errors, strict |
-| `uv run pytest` | 52 passed |
-| `uv run alembic upgrade head` + `alembic check` | clean; 2 revisions; drift detection and downgrade both proven |
-| `docker compose up -d` | postgres:17-alpine → `Up (healthy)`, PostgreSQL 17.11 |
+| `uv run pytest` | **101 passed**, stable over 3 consecutive runs |
+| `uv run alembic upgrade head` + `alembic check` | clean; 3 revisions; drift detection and downgrade proven |
+| `pnpm api:check` | contract and generated types reproduce byte-for-byte |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | clean / 0 errors / build complete |
-| `pnpm test:e2e` | 10 passed, Chromium, against the live stack |
-| GitHub Actions | [run 33323100364](https://github.com/UkrAndy/shop-crm/actions/runs/33323100364) — backend, frontend and e2e all green |
+| `pnpm test:e2e` | **15 passed** (10 auth + 5 products), Chromium, live stack |
+| GitHub Actions | [run 33325811478](https://github.com/UkrAndy/shop-crm/actions/runs/33325811478) — all three jobs green |
 
-**Working software today.** Log in at `/login`, land on a server-rendered protected page, pick
-an organization, reload without losing either, log out. `backend/scripts/seed_dev.py` provides
+**Working software today.** Log in, land on a server-rendered protected page, pick an
+organization, browse and search the product catalog, create and edit products with optimistic
+concurrency and an explicit conflict experience. `backend/scripts/seed_dev.py` provides
 `owner@example.com` and `multi@example.com`, both with password `seed-password-123`.
 
 **Environment:** `uv` 0.12.7 (at `%LOCALAPPDATA%\Programs\Python\Python314\Scripts\uv.exe`,
-not on the default PATH), `pnpm` 11.24.0, Node 24.19.0, `gh` 2.98.0 (unauthenticated),
-Docker Desktop 4.88.1 / Engine 29.7.2, Playwright 1.62.1 with Chromium only.
+not on the default PATH), Python pinned to **3.14** by `backend/.python-version`,
+`pnpm` 11.24.0, Node 24.19.0, `gh` 2.98.0 (unauthenticated), Docker Desktop 4.88.1 /
+Engine 29.7.2, Playwright 1.62.1 with Chromium only.
 
 **Constraints established that later work must not break:**
 - **The API must be same-site with the frontend.** Hosts are part of a *site*; ports are not.
@@ -1075,6 +1078,15 @@ Docker Desktop 4.88.1 / Engine 29.7.2, Playwright 1.62.1 with Chromium only.
   `data-hydrated` for exactly this.
 - **New models must be registered in `app/models/__init__.py`**, or `alembic check` will not see
   them and CI will pass on a schema that does not exist.
+- **`openapi.json` and `schema.d.ts` are generated and committed.** Change a Pydantic schema,
+  then run `pnpm api:generate` and commit both. CI fails on drift.
+- **Nothing in the OpenAPI document may depend on the Python version.** `documented()` supplies
+  its own response descriptions because `http.HTTPStatus` phrases are not stable across releases
+  — 3.13 renamed 422 from "Unprocessable Entity" to "Unprocessable Content" — and a committed
+  artifact that varies with the interpreter makes the drift check meaningless.
+- **Optimistic concurrency is `version_id_col`, not a hand-written counter.** Issues 15 and 20
+  copy this. Both the stale-client check and the `StaleDataError` path are needed; each alone
+  leaves a hole, and `tests/test_products_concurrency.py` proves it.
 
 **Supply-chain notes carried forward.** `uv` has neither an Authenticode signature nor a
 PEP 740 attestation. `fastapi[standard]` pulls `sentry-sdk` transitively — inert without a
@@ -1083,12 +1095,11 @@ attestation and no `repository` field; every other dependency added since does.
 `pnpm install` reports `Lockfile passes supply-chain policies`.
 
 **Next, in this order:**
-1. Merge the phase branches into `main`. `gh` is unauthenticated, so this is a browser action:
-   https://github.com/UkrAndy/shop-crm/pull/new/phase-1 then
-   https://github.com/UkrAndy/shop-crm/pull/new/phase-2 — or merge `phase-2` alone, since it
-   already contains `phase-1`.
+1. Merge into `main`. `gh` is unauthenticated, so this is a browser action; merging `phase-3`
+   alone is sufficient because it already contains phases 1 and 2:
+   https://github.com/UkrAndy/shop-crm/pull/new/phase-3
 2. `gh auth login` in a **new** terminal, then publish these 26 issues as milestones/issues
    if GitHub tracking is still wanted.
-3. Start Milestone 3 at **Issue 10** — the `Product` model. It is the first aggregate carrying a
-   `version` token, and Issues 15 and 20 copy whatever pattern it sets, so it is worth getting
-   right rather than quickly.
+3. Start Milestone 4 at **Issue 14** — warehouse and counterparty stubs. They exist only to make
+   a goods receipt valid; the temptation to grow them into real modules is the thing to resist,
+   since the PRD puts contracts and counterparty statistics out of scope.
