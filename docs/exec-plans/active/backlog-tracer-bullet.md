@@ -184,7 +184,7 @@ added so a clean checkout has the directory Alembic expects.
 
 ### Issue 5 — `P1: CI pipeline and developer setup documentation`
 
-**Status:** ⚠️ Done locally; the workflow has not yet run on GitHub (see Verification).
+**Status:** ✅ Done (2026-08-30)
 
 **Context.** `AGENTS.md` §12 forbids claiming completion without evidence; CI makes the
 quality gates non-optional. README currently has a placeholder setup section.
@@ -223,10 +223,16 @@ quality gates non-optional. README currently has a placeholder setup section.
 - Action versions pinned to the current majors as of 2026-08-30: `actions/checkout@v7`,
   `actions/setup-node@v7`, `pnpm/action-setup@v6`, `astral-sh/setup-uv@v10`.
 
-**❌ Could not be verified.** *"Workflow passes on the phase branch."* `gh` is not
-authenticated on this host and the `phase-1` branch is not on the remote, so no GitHub
-Actions run exists. **This acceptance criterion is open** — the workflow is written and
-locally equivalent, but unproven in CI.
+- **The workflow passes on the phase branch.** `phase-1` was pushed to `origin` and
+  [run 33318800111](https://github.com/UkrAndy/shop-crm/actions/runs/33318800111) for commit
+  `3c58339` is green: both jobs succeeded, all 11 backend steps and all 8 frontend steps.
+
+**Two defects the CI run caught that local verification could not:**
+
+| Defect | Fix |
+|---|---|
+| The workflow triggered only on `main` and pull requests, so a phase branch never got a run — the very thing this criterion asks for | Trigger on `phase-**` too; concurrency keyed on `head_ref` so the push and PR runs of one commit collapse instead of billing twice |
+| `astral-sh/setup-uv@v10` failed to resolve: that repository stopped publishing moving major tags after `v7`, so the alias does not exist | Pin the exact release, `astral-sh/setup-uv@v10.0.1` |
 
 **Decision taken during implementation.** A root `package.json` was added: `pnpm/action-setup`
 resolves the pnpm version from `packageManager`, and the workspace root previously had no
@@ -691,7 +697,7 @@ commands produced the evidence, and every known limitation.
 
 | Milestone | Phase | Issues | Status |
 |-----------|-------|--------|--------|
-| 1 | Repository Scaffold & Baseline | 1–5 | 5 of 5 implemented (Issue 5 unverified in CI) |
+| 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | Not started |
 | 3 | Catalog (Products) | 10–13 | Not started |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
@@ -707,13 +713,15 @@ commands produced the evidence, and every known limitation.
 |---------|--------|-------|--------|
 | Docker Desktop requires host reboot | Issue 4, and every test needing Postgres | User | ✅ Resolved — Engine 29.7.2 responding |
 | Git identity is a placeholder | Commit attribution on GitHub | User | ✅ Resolved — `Andrii Bryla <bryla.andrii@gmail.com>` |
-| `gh auth login` is interactive (browser) | Publishing these 26 issues as GitHub milestones/issues | User | ❌ Open — `gh` reports no logged-in host |
-| No CI run on the phase branch | Issue 5 acceptance criterion *"workflow passes"* | User/next session | ❌ Open |
+| No CI run on the phase branch | Issue 5 acceptance criterion *"workflow passes"* | — | ✅ Resolved — run 33318800111 green on `3c58339` |
+| `gh auth login` is interactive (browser) | Publishing these 26 issues as GitHub milestones/issues; opening the Phase 1 PR from the CLI | User | ❌ Open — `gh` reports no logged-in host |
 
 ## Resume here — state as of 2026-08-30, end of Phase 1
 
-**Branch:** `phase-1` · **Remote:** `origin` → `https://github.com/UkrAndy/shop-crm.git`
-(`origin/main` is at `f5e732c`, documents only — the whole scaffold lives on `phase-1`).
+**Branch:** `phase-1`, pushed and tracking `origin/phase-1` ·
+**Remote:** `https://github.com/UkrAndy/shop-crm.git` · **CI:** green on the phase branch
+(`origin/main` is still at `f5e732c`, documents only — the whole scaffold lives on `phase-1`
+until its PR is merged).
 
 **Done: Milestone 1 issues 1–5 are implemented.** Verification evidence is recorded under each
 issue above rather than summarised here.
@@ -728,6 +736,7 @@ issue above rather than summarised here.
 | `GET /api/v1/health/ready` | `{"status":"ok","database":"up"}` |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | clean / 0 errors / build complete |
 | SSR proof | `render-origin=server` in the initial HTML from both `pnpm dev` and the production preview |
+| GitHub Actions | [run 33318800111](https://github.com/UkrAndy/shop-crm/actions/runs/33318800111) — both jobs green |
 
 **Environment:** `uv` 0.12.7 (at `%LOCALAPPDATA%\Programs\Python\Python314\Scripts\uv.exe`,
 not on the default PATH), `pnpm` 11.24.0, Node 24.19.0, `gh` 2.98.0 (unauthenticated),
@@ -740,8 +749,9 @@ attestation and no `repository` field. `pnpm install` reports
 `Lockfile passes supply-chain policies`.
 
 **Next, in this order:**
-1. Push `phase-1` and open a PR against `main` so the CI workflow actually runs — that closes
-   the only open acceptance criterion in Milestone 1.
+1. Open the Phase 1 PR `phase-1` → `main` and merge it, so `main` carries the scaffold.
+   `gh` is unauthenticated, so this is a browser action:
+   https://github.com/UkrAndy/shop-crm/pull/new/phase-1
 2. `gh auth login` in a **new** terminal, then publish these 26 issues as milestones/issues
    if GitHub tracking is still wanted.
 3. Start Milestone 2 at **Issue 6** — the auth strategy decision

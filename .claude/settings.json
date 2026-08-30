@@ -14,7 +14,15 @@
       "Bash(git log*)",
       "Bash(git check-ignore *)",
       "Bash(git checkout *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(git push *)",
+      "Bash(curl -s \"https://api.github.com/repos/UkrAndy/shop-crm/actions/runs?branch=phase-1&per_page=5\")",
+      "Bash(curl -s \"https://api.github.com/repos/UkrAndy/shop-crm/actions/runs/33318652154/jobs\")",
+      "Bash(curl -s \"https://api.github.com/repos/UkrAndy/shop-crm/check-runs/99276592232/annotations\")",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{try{const j=JSON.parse\\(s\\);if\\(Array.isArray\\(j\\)\\){j.forEach\\(a=>console.log\\(a.annotation_level,'|',a.title,'|',a.message\\)\\)}else console.log\\(JSON.stringify\\(j\\).slice\\(0,300\\)\\)}catch\\(e\\){console.log\\(s.slice\\(0,300\\)\\)}}\\)\")",
+      "Bash(curl -s \"https://api.github.com/repos/UkrAndy/shop-crm/check-runs/99276592232\")",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(s\\);console.log\\(JSON.stringify\\(j.output,null,1\\).slice\\(0,1500\\)\\)}\\)\")",
+      "Bash(curl -s \"https://api.github.com/repos/UkrAndy/shop-crm/actions/runs?branch=phase-1&per_page=1\")"
     ]
   }
 }
