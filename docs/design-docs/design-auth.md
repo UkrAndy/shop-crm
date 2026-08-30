@@ -94,6 +94,25 @@ endpoint ever accepts a form content type, or the API is embedded cross-site, la
 both fall and a double-submit CSRF token becomes mandatory. That condition is written into the
 design so a future change cannot silently cross it.
 
+### Deployment constraint: the API must be same-site with the frontend
+
+This is not a preference; it is what makes the design work at all.
+
+Ports are not part of a *site*, so `localhost:3000` and `localhost:8000` are same-site and the
+cookie flows between them. **Hosts are.** `localhost:3000` and `127.0.0.1:8000` are *different*
+sites even though they are the same machine: the cookie is never sent back, and every login
+appears to succeed while nothing is authenticated afterwards.
+
+In production this means serving the API under the frontend's registrable domain — behind one
+proxy, or as `api.example.com` beside `app.example.com`. An API on an unrelated domain would
+require `SameSite=None; Secure`, which discards CSRF layer 1 and makes the double-submit token
+mandatory.
+
+**This was found the hard way.** The E2E CI job set `NUXT_PUBLIC_API_BASE` to `127.0.0.1` while
+the browser loaded the app from `localhost`, and every login test failed for what looked like an
+application bug. The constraint is now stated here, asserted in a comment in
+`playwright.config.ts`, and explained where the CI job would otherwise have re-broken it.
+
 ## 5. Data model
 
 Three tables landed in Issue 6; `sessions` followed in Issue 7 alongside the login endpoint that

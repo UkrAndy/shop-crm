@@ -1,7 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// Both must share a host, not merely a machine. `localhost:3000` and
+// `127.0.0.1:8000` are *different sites* to a browser, so a `SameSite=Lax`
+// session cookie set by one is never sent to the other and every login silently
+// fails to stick. Overriding one of these alone reintroduces that.
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'
-const API_URL = process.env.E2E_API_URL ?? 'http://127.0.0.1:8000'
+const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000'
 
 /**
  * End-to-end suite.

@@ -130,7 +130,11 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+psycopg://testvasja:testvasja@localhost:5432/testvasja
-      NUXT_PUBLIC_API_BASE: http://127.0.0.1:8000/api/v1
+      # NUXT_PUBLIC_API_BASE is deliberately NOT set. The default already points
+      # at localhost:8000, and the browser loads the app from localhost:3000 —
+      # the same site, which is what lets the SameSite=Lax session cookie work.
+      # Pointing the API at 127.0.0.1 makes it a different site and every login
+      # silently fails to stick.
 
     steps:
       - uses: actions/checkout@v7
