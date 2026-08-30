@@ -107,6 +107,42 @@ pnpm typecheck                # vue-tsc, strict
 pnpm build
 ```
 
+**End-to-end** (from the repository root; needs PostgreSQL running and `uv` on PATH):
+
+```bash
+pnpm test:e2e                 # Playwright, Chromium
+```
+
+The first run needs the browser once:
+
+```bash
+pnpm --filter @testvasja/frontend exec playwright install chromium
+```
+
+Nothing else has to be started by hand. `playwright.config.ts` launches the API and the Nuxt
+dev server (reusing them if they are already running), and its `globalSetup` applies migrations
+and seeds deterministic accounts.
+
+## Seed Data
+
+Registration is out of scope for the Tracer Bullet, so the first accounts come from a script:
+
+```bash
+cd backend && uv run python scripts/seed_dev.py
+```
+
+| Account | Password | Organizations |
+|---|---|---|
+| `owner@example.com` | `seed-password-123` | ФОП Альфа |
+| `multi@example.com` | `seed-password-123` | ФОП Альфа, ФОП Бета |
+
+`owner` has a single membership, which the server selects automatically at login; `multi` has
+two, which the server deliberately refuses to choose between. The script is idempotent and is
+for development databases only — the passwords are in version control.
+
+Addresses use `example.com` on purpose: Pydantic's `EmailStr` rejects special-use names such as
+`.local`, so a `user@company.local` account would be created but could never log in.
+
 ## Project Structure
 
 ```

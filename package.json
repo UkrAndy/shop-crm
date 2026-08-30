@@ -11,6 +11,7 @@
     "lint": "pnpm --filter @testvasja/frontend lint",
     "typecheck": "pnpm --filter @testvasja/frontend typecheck",
     "build": "pnpm --filter @testvasja/frontend build",
-    "dev": "pnpm --filter @testvasja/frontend dev"
+    "dev": "pnpm --filter @testvasja/frontend dev",
+    "test:e2e": "pnpm --filter @testvasja/frontend test:e2e"
   }
 }

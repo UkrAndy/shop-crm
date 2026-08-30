@@ -27,7 +27,9 @@
       "Bash(pnpm exec *)",
       "Bash(tasklist //FI \"PID eq 29156\")",
       "Bash(curl -s -H \"Content-Type: application/json\" -d '{\"email\":\"owner@testvasja.local\",\"password\":\"seed-password-123\"}' http://localhost:8000/api/v1/auth/login)",
-      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -H \"Content-Type: application/json\" -d '{\"email\":\"owner@example.com\",\"password\":\"x\"}' http://localhost:8000/api/v1/auth/login)"
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -H \"Content-Type: application/json\" -d '{\"email\":\"owner@example.com\",\"password\":\"x\"}' http://localhost:8000/api/v1/auth/login)",
+      "Bash(curl -s \"https://api.github.com/repos/actions/upload-artifact/tags?per_page=100\")",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(s\\);console.log\\('major aliases:', j.map\\(t=>t.name\\).filter\\(n=>/^v\\\\d+$/.test\\(n\\)\\).join\\(', '\\)\\);console.log\\('newest:', j.slice\\(0,4\\).map\\(t=>t.name\\).join\\(', '\\)\\)}\\)\")"
     ]
   }
 }

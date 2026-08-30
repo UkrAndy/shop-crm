@@ -108,3 +108,68 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e:
+    name: E2E — full stack in a browser
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: testvasja
+          POSTGRES_PASSWORD: testvasja
+          POSTGRES_DB: testvasja
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testvasja -d testvasja"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://testvasja:testvasja@localhost:5432/testvasja
+      NUXT_PUBLIC_API_BASE: http://127.0.0.1:8000/api/v1
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Both toolchains: the suite drives Nuxt, FastAPI and PostgreSQL together,
+      # which is the only way to test that the session cookie survives SSR.
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install backend
+        run: uv sync --locked
+        working-directory: backend
+
+      - name: Install frontend
+        run: pnpm install --frozen-lockfile
+
+      # Only Chromium: three engines would treble the runtime to re-test the
+      # same server-side behaviour. Cross-browser rendering is a separate concern
+      # from the flows under test here.
+      - name: Install Chromium
+        run: pnpm --filter @testvasja/frontend exec playwright install --with-deps chromium
+
+      # playwright.config.ts starts both servers and runs migrations and the
+      # seed in globalSetup, so there is nothing else to orchestrate here.
+      - name: Run E2E suite
+        run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

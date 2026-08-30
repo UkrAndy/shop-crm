@@ -460,6 +460,8 @@ a page reload.
 
 ### Issue 9 — `P2: Authentication test coverage`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Scope.**
 - Playwright set up for the repository (config, CI wiring).
 - E2E: login → organization selection → protected page.
@@ -472,6 +474,39 @@ a page reload.
 `backend/tests/test_auth.py`.
 
 **Out of scope.** Visual regression testing.
+
+**Delivered.** `@playwright/test` 1.62.1 (SLSA provenance, `microsoft/playwright`), Chromium
+only, `frontend/playwright.config.ts`, `frontend/tests/e2e/{global-setup,auth.spec}.ts`, and a
+third CI job that runs the whole stack — PostgreSQL, FastAPI, Nuxt — in one runner.
+
+**Ten E2E cases**, covering the issue's list plus the acceptance criteria Issue 8 could only
+assert at the HTTP level: login → protected page; sole membership auto-selected; invalid
+credentials error and stay on `/login`; client-side email validation; anonymous redirect
+carrying `?redirect=`; reload without a login flash; two memberships not guessed; organization
+selection surviving a full reload; logout blocking protected routes; an authenticated visitor
+bounced off `/login`.
+
+**One test-harness defect, and it is worth remembering.** The first run failed 9 of 10 with an
+apparently blank form. Cause: `fill()` writes into server-rendered markup, and Vue then
+re-renders from its own empty state — a hydration race, not a broken selector. Fixed by
+marking the document `data-hydrated` in `app.vue` on mount and waiting for it before typing.
+Anything driving an SSR page has to wait for hydration; the alternative is a suite that fails
+by machine speed.
+
+**Only Chromium.** Three engines would treble the runtime to re-test the same server-side
+behaviour. Cross-browser rendering is a different concern from these flows and is not what the
+PRD's Definition of Done asks about.
+
+**Verification (2026-08-30).** `pnpm test:e2e` → **10 passed** in 14s, locally, against a live
+PostgreSQL, FastAPI and Nuxt.
+
+**The tests were proven load-bearing, not merely green.** SSR cookie forwarding was disabled on
+purpose in `createApiClient`; *"reloading a protected page does not flash the login screen"* and
+*"selecting an organization survives a full page reload"* both failed, and both passed again once
+it was restored. A suite that stays green when the mechanism is removed is testing nothing.
+
+**Scope note.** `test:e2e` is wired at the workspace root, and the seed script and E2E setup are
+documented in the README, since neither is discoverable from the code alone.
 
 ---
 
@@ -834,7 +869,7 @@ commands produced the evidence, and every known limitation.
 | Milestone | Phase | Issues | Status |
 |-----------|-------|--------|--------|
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
-| 2 | Identity & Organizations | 6–9 | 3 of 4 done |
+| 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | Not started |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
