@@ -141,6 +141,8 @@ dev-tooling of the Nuxt CLI, not ours to pin.
 
 ### Issue 4 — `P1: Local services — PostgreSQL via Docker Compose`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** Docker Desktop was installed on 2026-08-30 and requires a host reboot before the
 engine is usable. Concurrency correctness (Phases 5 and 7) depends on real PostgreSQL
 semantics — `SELECT … FOR UPDATE`, `numeric`, transactional DDL — so SQLite is not an option.
@@ -162,6 +164,21 @@ semantics — `SELECT … FOR UPDATE`, `numeric`, transactional DDL — so SQLit
 **Tests.** Readiness endpoint returning `up` is the verification.
 
 **Out of scope.** MinIO / object storage (PRD defers attachments), pgAdmin, production compose.
+
+**Verification (2026-08-30).** Docker Engine 29.7.2 responded after the reboot, so the blocker
+is cleared. `docker compose config` valid · `docker compose up -d` → healthcheck `healthy` ·
+server reports `PostgreSQL 17.11 on x86_64-pc-linux-musl` · `uv run alembic upgrade head`
+→ `Context impl PostgresqlImpl`, `Will assume transactional DDL`, `alembic_version` created ·
+`GET /api/v1/health/ready` → `{"status":"ok","database":"up","detail":null}` ·
+`docker compose down -v` removed the volume, then `up -d` + `upgrade head` reproduced the
+clean database (`Did not find any relations` → `alembic_version`).
+
+**Note.** `alembic_version` is created even though `migrations/versions/` holds no revision
+yet; the first revision lands in Phase 2 with the identity models. `versions/.gitkeep` was
+added so a clean checkout has the directory Alembic expects.
+
+**Note.** `uv` is not on the PATH of shells opened before its install; it lives at
+`%LOCALAPPDATA%\Programs\Python\Python314\Scripts\uv.exe`.
 
 ---
 
@@ -646,7 +663,7 @@ commands produced the evidence, and every known limitation.
 
 | Milestone | Phase | Issues | Status |
 |-----------|-------|--------|--------|
-| 1 | Repository Scaffold & Baseline | 1–5 | 3 of 5 done |
+| 1 | Repository Scaffold & Baseline | 1–5 | 4 of 5 done |
 | 2 | Identity & Organizations | 6–9 | Not started |
 | 3 | Catalog (Products) | 10–13 | Not started |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
