@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import pytest
 from sqlalchemy import Engine, create_engine, make_url, text
@@ -175,3 +175,35 @@ def organization_factory(db_session: Session) -> Callable[[str], Organization]:
         return organization
 
     return create
+
+
+class LoggedIn(NamedTuple):
+    """A client with a live session and a resolved organization scope."""
+
+    client: TestClient
+    organization: Organization
+    user: User
+
+
+@pytest.fixture
+def logged_in(
+    client: TestClient,
+    user_factory: Callable[..., User],
+    organization_factory: Callable[[str], Organization],
+) -> LoggedIn:
+    """The common starting point for scoped-endpoint tests.
+
+    One membership, so the active organization is resolved at login and the test
+    does not have to select it before every request.
+    """
+    organization = organization_factory("ФОП Тестова")
+    user = user_factory("scoped-user@example.com", organization)
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "scoped-user@example.com", "password": TEST_PASSWORD},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["active_organization_id"] == str(organization.id)
+
+    return LoggedIn(client=client, organization=organization, user=user)

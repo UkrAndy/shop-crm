@@ -577,6 +577,8 @@ makes that guard load-bearing rather than decorative.
 
 ### Issue 11 — `P3: Products API with optimistic concurrency`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Scope.**
 - `POST /api/v1/products`, `GET /api/v1/products` (filter + pagination),
   `PATCH /api/v1/products/{id}`.
@@ -594,6 +596,41 @@ makes that guard load-bearing rather than decorative.
 **Tests.** Integration including two sequential updates where the second uses a stale version.
 
 **Out of scope.** Deletion/archiving, bulk import.
+
+**Two races, both closed.** A stale-version `PATCH` is rejected *before anything is mutated*, so
+a 409 provably leaves the row untouched. A writer who commits between our read and our flush is
+caught by `version_id_col` in the `UPDATE … WHERE version = ?` itself. Checking only the first
+leaves a window; relying only on the second mutates the object before discovering the client was
+stale. Both paths roll back — a session left in a failed state turns one bad request into every
+later request on that connection failing.
+
+**Decisions:**
+
+| Decision | Reason |
+|---|---|
+| Money crosses the wire as a **string** | JSON numbers are IEEE 754 doubles in every mainstream parser, so a price sent as a number is a price that can drift. `Decimal` on both ends, `type: string` in the OpenAPI document. |
+| `decimal_places=2` in the schema | This is what turns PostgreSQL's silent rounding of `10.005 → 10.01` into an explicit 422. It makes Issue 10's documented rounding hazard unreachable in practice. |
+| A duplicate barcode is **409 `barcode_taken`**, not 422 | The payload is well-formed; it is the current state of the catalog that rejects it — the distinction research §555 draws. Unmapped `IntegrityError`s are deliberately *not* swallowed into 409: surfacing an unanticipated constraint as a 500 is honest. |
+| A foreign product and an unknown id both answer **403** | The query is scoped in its `WHERE` clause, so the server never learns whether the row exists elsewhere and therefore cannot leak it. This keeps the contract in `design-auth.md` §6 intact instead of introducing a second convention for products. |
+| `limit` capped at 200 | An unbounded page size turns one request into a full-table dump. |
+| `GET /products/{id}` added, though the issue lists only POST/GET-list/PATCH | The edit form needs the current `version` before it can `PATCH`; without it the UI would have to scrape the list. |
+
+**A contract defect found by reading the generated document.** FastAPI documents 422 with its
+own `HTTPValidationError`, while our handler actually returns the shared envelope — so the
+OpenAPI document described a body the API never sends, and Issue 12's generated client would
+have narrowed on it. Fixed at the application level (`FastAPI(responses=documented(422))`);
+`HTTPValidationError` and `ValidationError` are now absent from the schema list entirely.
+
+**Verification (2026-08-30).**
+- **Test-first, RED confirmed:** 29 failed before the router existed; **29 passed** after, and
+  **98 passed** across the suite.
+- `ruff check` / `ruff format --check` clean (36 files) · `pyright` 0 errors, strict ·
+  `alembic check` clean.
+- The acceptance criterion is tested as written: two sequential `PATCH`es where the second still
+  holds version 1 → 409 `version_conflict`, and a follow-up `GET` proves the row still holds the
+  first change at version 2.
+- OpenAPI inspected directly: `purchase_price` is `type: string`, 409 is documented on `PATCH`,
+  and every 422 across every route points at `ErrorResponse`.
 
 ---
 
@@ -907,7 +944,7 @@ commands produced the evidence, and every known limitation.
 |-----------|-------|--------|--------|
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
-| 3 | Catalog (Products) | 10–13 | 1 of 4 done |
+| 3 | Catalog (Products) | 10–13 | 2 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
 | 6 | Stock Balance Query | 23–24 | Not started |
