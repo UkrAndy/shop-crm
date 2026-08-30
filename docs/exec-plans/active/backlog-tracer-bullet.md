@@ -395,6 +395,8 @@ nested function as unused, and module-level handlers are independently testable 
 
 ### Issue 8 — `P2: Frontend authentication and organization context`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** SSR must not flash unauthenticated content; the active organization must survive
 a page reload.
 
@@ -415,6 +417,44 @@ a page reload.
 **Tests.** Covered by Issue 9.
 
 **Out of scope.** Products and receipts UI.
+
+**Deviations, recorded rather than slipped in:**
+
+| Deviation | Reason |
+|---|---|
+| `middleware/auth.global.ts`, not the named `middleware/auth.ts` the issue lists | Global with an explicit public allowlist fails **closed**: a page added later without the right `definePageMeta` would otherwise be silently public. |
+| The active organization is **not** "persisted and sent with API calls" | It lives on the session row server-side, so there is nothing for the client to persist or send. A client that could name its own scope in every request would be able to widen it. This is a stronger design than the issue text assumed, so the text is wrong, not the code. |
+| `backend/scripts/seed_dev.py` added | Registration is out of PRD scope, so the first user has to come from somewhere. Needed to verify this issue at all, and reused by Issue 9. |
+| Hand-written types in `app/types/api.ts` | The generated OpenAPI client is Issue 12. The file says so, and duplication by hand is exactly why that issue exists. |
+
+**Two defects found by verifying instead of assuming:**
+
+1. **`NUXT_E1001` — SSR silently rendered every visitor as anonymous.** `apiFetch` called
+   `useRuntimeConfig()` and `useRequestHeaders()` on each request; after the first `await` in a
+   Pinia action the Nuxt context is gone, so the second call threw and `hydrate()` swallowed it
+   as "not logged in". Fixed by `createApiClient()`, which captures the base URL and the
+   forwarded cookie **once during store setup** — inside a context — and returns a plain
+   `$fetch` instance usable afterwards. Symptom before the fix: an authenticated `GET /`
+   redirected to `/login`.
+2. **The seed created accounts that could not log in.** `owner@testvasja.local` is refused by
+   `email-validator` behind Pydantic's `EmailStr` — `.local` is a special-use reserved name — so
+   `/auth/login` answered **422** before reaching the password check. Addresses moved to
+   RFC 2606's `example.com`, and the seed now validates them through the real `LoginRequest`
+   schema so this cannot regress silently.
+
+**Verification (2026-08-30),** against a live backend, a live Nuxt dev server and seeded data:
+
+| Check | Evidence |
+|---|---|
+| No login flash on reload | `GET /` **with** the session cookie returns 200 whose *initial HTML* already contains `data-testid="current-user">owner@example.com` and `render-origin=server` |
+| Anonymous visitors are redirected | `GET /` → `302 → /login?redirect=/` |
+| Login page is server-rendered | `GET /login` returns the form's `data-testid`s in the initial HTML |
+| An authenticated visitor gets no login page | `GET /login` → `302 → /` |
+| Sole membership auto-selected | Page shows `active-organization = ФОП Альфа` |
+| Two memberships are not guessed | `multi@example.com` gets `active_organization_id: null`, the page shows `не обрано`, and both organizations appear in the server-rendered selector |
+| No context warnings remain | `NUXT_E1001` count in a fresh dev log after three requests: **0** |
+
+`pnpm lint`, `pnpm typecheck` and `pnpm build` clean; backend gates unchanged and green.
 
 ---
 
@@ -794,7 +834,7 @@ commands produced the evidence, and every known limitation.
 | Milestone | Phase | Issues | Status |
 |-----------|-------|--------|--------|
 | 1 | Repository Scaffold & Baseline | 1–5 | ✅ 5 of 5 done, CI green |
-| 2 | Identity & Organizations | 6–9 | 2 of 4 done |
+| 2 | Identity & Organizations | 6–9 | 3 of 4 done |
 | 3 | Catalog (Products) | 10–13 | Not started |
 | 4 | Goods Receipt Draft & Edit | 14–17 | Not started |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | Not started |
