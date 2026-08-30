@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose *)",
+      "Bash(docker exec *)",
+      "Bash(docker inspect *)",
+      "Bash(docker volume ls*)",
+      "Bash(uv run *)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm typecheck*)",
+      "Bash(pnpm build*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git check-ignore *)"
+    ]
+  }
+}
