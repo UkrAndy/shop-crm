@@ -9,6 +9,7 @@ from app.models.audit import AuditLog
 from app.models.catalog import Product
 from app.models.counterparty import CounterpartyStub
 from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine, ReceiptStatus
+from app.models.idempotency import IdempotencyRecord
 from app.models.identity import Membership, Organization, User, UserSession
 from app.models.inventory import InventoryBatch, MovementType, StockMovement, Warehouse
 
@@ -17,6 +18,7 @@ __all__ = [
     "CounterpartyStub",
     "GoodsReceipt",
     "GoodsReceiptLine",
+    "IdempotencyRecord",
     "InventoryBatch",
     "Membership",
     "MovementType",

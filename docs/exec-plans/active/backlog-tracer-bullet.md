@@ -1029,6 +1029,8 @@ The index acceptance criterion is checked against the reflected schema rather th
 
 ### Issue 19 — `P5: Idempotency key mechanism`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** PRD makes `Idempotency-Key` mandatory for the posting command. A replayed request
 must return the original result; the *same key with a different payload* is a conflict, not a
 replay.
@@ -1047,6 +1049,37 @@ replay.
 **Modules.** `backend/app/core/idempotency.py`, `backend/app/models/idempotency.py`.
 
 **Tests.** Replay, conflicting-payload, and missing-key cases.
+
+**The whole mechanism is one unique constraint plus one transaction.** The reservation row is
+inserted in the *same* transaction as the command, which buys two properties without any
+locking, in-flight state machine or polling of our own:
+
+- **A failed command does not burn its key.** The rollback takes the reservation with it, and the
+  request that failed is exactly the one a client will retry.
+- **Concurrency is PostgreSQL's problem.** Two requests carrying the same key both attempt the
+  insert; the second waits on the unique index. If the first commits, the second's insert raises
+  a unique violation and it returns the stored response; if the first rolls back, the second's
+  insert succeeds and it does the work.
+
+**A defect the tests found in this issue's own code.** `except IntegrityError` was too broad: a
+foreign-key violation was being treated as "this key is already taken", which would have hidden a
+real bug behind a 200. Only the violation of `uq_idempotency_records_scope` now means a replay;
+everything else is re-raised — the same discipline already applied to `barcode_taken`.
+
+**Other decisions:**
+
+| Decision | Reason |
+|---|---|
+| Fingerprint over a **canonical** JSON rendering (`sort_keys`) | Object order carries no meaning, so an equivalent retry that serialised its fields differently must not look like a conflict. Asserted by a test. |
+| A same-key-different-payload request is **409**, not a replay | It means the client's key generation is broken; returning the first response would silently answer a question that was never asked. |
+| The stored response is returned **verbatim** | The record is the source of truth for a replay, not whatever the caller would compute today. Tested by replaying with a command that would return something different. |
+| The key is mandatory, with no generated fallback | A fallback would make every request unique — no idempotency at all, while looking switched on. |
+| Scoped per `(organization, endpoint, key)` | Client-supplied keys are not globally unique, and one key reaching two different commands is two different pieces of work. Both scopes are tested. |
+
+**Verification (2026-08-30).** Test-first, RED confirmed; **15 passed** for this issue and
+**195** across the suite. `ruff` / `ruff format --check` clean (58 files) · `pyright` 0 errors,
+strict · `alembic check` clean · downgrade and back proven. True concurrent execution of the
+mechanism is exercised in Issue 22, where a real command exists to run against it.
 
 ---
 
@@ -1199,7 +1232,7 @@ commands produced the evidence, and every known limitation.
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | ✅ 4 of 4 done |
-| 5 | Posting — Idempotency & Atomicity | 18–22 | 1 of 5 done |
+| 5 | Posting — Idempotency & Atomicity | 18–22 | 2 of 5 done |
 | 6 | Stock Balance Query | 23–24 | Not started |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |
 
