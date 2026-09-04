@@ -69,8 +69,20 @@ def post(
     )
 
 
-def count(session: Session, model: type[Any]) -> int:
-    return session.scalar(select(func.count()).select_from(model)) or 0
+def count(session: Session, model: type[Any], organization_id: uuid.UUID) -> int:
+    """Scoped, deliberately.
+
+    A global count assumes the whole database belongs to this test. It does not:
+    `test_posting_concurrency.py` commits rows on its own organizations, and a
+    test that depends on the rest of the database being empty is testing the
+    suite rather than the code.
+    """
+    return (
+        session.scalar(
+            select(func.count()).select_from(model).where(model.organization_id == organization_id)
+        )
+        or 0
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -108,8 +120,13 @@ def test_posting_creates_one_batch_and_one_movement_per_line(
 
     post(logged_in.client, receipt)
 
-    batches = db_session.scalars(select(InventoryBatch)).all()
-    movements = db_session.scalars(select(StockMovement)).all()
+    org = logged_in.organization.id
+    batches = db_session.scalars(
+        select(InventoryBatch).where(InventoryBatch.organization_id == org)
+    ).all()
+    movements = db_session.scalars(
+        select(StockMovement).where(StockMovement.organization_id == org)
+    ).all()
 
     assert len(batches) == 2
     assert len(movements) == 2
@@ -125,7 +142,10 @@ def test_a_new_batch_is_entirely_unconsumed(logged_in: LoggedIn, db_session: Ses
 
     post(logged_in.client, receipt)
 
-    batch = db_session.scalars(select(InventoryBatch)).one()
+    org = logged_in.organization.id
+    batch = db_session.scalars(
+        select(InventoryBatch).where(InventoryBatch.organization_id == org)
+    ).one()
     assert batch.quantity == 7
     assert batch.remaining_quantity == 7
     assert batch.receipt_id == uuid.UUID(receipt["id"])
@@ -139,8 +159,13 @@ def test_the_movement_points_back_at_its_batch_and_document(
 
     post(logged_in.client, receipt)
 
-    batch = db_session.scalars(select(InventoryBatch)).one()
-    movement = db_session.scalars(select(StockMovement)).one()
+    org = logged_in.organization.id
+    batch = db_session.scalars(
+        select(InventoryBatch).where(InventoryBatch.organization_id == org)
+    ).one()
+    movement = db_session.scalars(
+        select(StockMovement).where(StockMovement.organization_id == org)
+    ).one()
 
     assert movement.quantity_delta == 4
     assert movement.movement_type is MovementType.RECEIPT
@@ -155,7 +180,12 @@ def test_posting_writes_an_audit_record(logged_in: LoggedIn, db_session: Session
 
     post(logged_in.client, receipt)
 
-    entry = db_session.scalars(select(AuditLog).where(AuditLog.action == "posted_receipt")).one()
+    entry = db_session.scalars(
+        select(AuditLog).where(
+            AuditLog.action == "posted_receipt",
+            AuditLog.organization_id == logged_in.organization.id,
+        )
+    ).one()
     assert entry.entity_type == "goods_receipt"
     assert entry.entity_id == uuid.UUID(receipt["id"])
     assert entry.actor_id == logged_in.user.id
@@ -175,8 +205,9 @@ def test_posting_an_empty_document_is_422(logged_in: LoggedIn, db_session: Sessi
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "empty_document"
-    assert count(db_session, InventoryBatch) == 0
-    assert count(db_session, StockMovement) == 0
+    org = logged_in.organization.id
+    assert count(db_session, InventoryBatch, org) == 0
+    assert count(db_session, StockMovement, org) == 0
 
 
 def test_posting_twice_is_409(logged_in: LoggedIn) -> None:
@@ -201,8 +232,9 @@ def test_posting_twice_still_leaves_one_batch_and_one_movement(
     post(logged_in.client, receipt, key="first")
     post(logged_in.client, receipt, key="second", version=receipt["version"] + 1)
 
-    assert count(db_session, InventoryBatch) == 1
-    assert count(db_session, StockMovement) == 1
+    org = logged_in.organization.id
+    assert count(db_session, InventoryBatch, org) == 1
+    assert count(db_session, StockMovement, org) == 1
 
 
 def test_a_stale_version_is_409(logged_in: LoggedIn, db_session: Session) -> None:
@@ -216,7 +248,8 @@ def test_a_stale_version_is_409(logged_in: LoggedIn, db_session: Session) -> Non
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "version_conflict"
-    assert count(db_session, StockMovement) == 0
+    org = logged_in.organization.id
+    assert count(db_session, StockMovement, org) == 0
 
 
 def test_the_idempotency_key_is_required(logged_in: LoggedIn) -> None:
@@ -257,8 +290,9 @@ def test_a_replay_returns_the_same_body_and_creates_nothing_more(
 
     assert first.status_code == second.status_code == 200
     assert first.json() == second.json()
-    assert count(db_session, InventoryBatch) == 1
-    assert count(db_session, StockMovement) == 1
+    org = logged_in.organization.id
+    assert count(db_session, InventoryBatch, org) == 1
+    assert count(db_session, StockMovement, org) == 1
 
 
 def test_the_same_key_with_a_different_version_is_409(logged_in: LoggedIn) -> None:
@@ -302,9 +336,10 @@ def test_an_injected_failure_leaves_no_batches_and_no_movements(
 
     db_session.rollback()
 
-    assert count(db_session, InventoryBatch) == 0
-    assert count(db_session, StockMovement) == 0
-    assert count(db_session, AuditLog) == 0
+    org = logged_in.organization.id
+    assert count(db_session, InventoryBatch, org) == 0
+    assert count(db_session, StockMovement, org) == 0
+    assert count(db_session, AuditLog, org) == 0
 
 
 def test_a_failed_post_leaves_the_document_a_draft(

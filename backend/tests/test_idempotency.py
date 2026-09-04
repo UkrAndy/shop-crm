@@ -241,7 +241,11 @@ def test_a_stored_record_is_written_once(db_session: Session, organization: Orga
     run(db_session, organization, command)
     run(db_session, organization, command)
 
-    records = db_session.query(IdempotencyRecord).all()
+    records = (
+        db_session.query(IdempotencyRecord)
+        .filter(IdempotencyRecord.organization_id == organization.id)
+        .all()
+    )
     assert len(records) == 1
     assert records[0].response_status == 200
 

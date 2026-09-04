@@ -1150,6 +1150,8 @@ is the corruption this transaction exists to prevent.
 
 ### Issue 21 — `P5: Posting UI`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Scope.**
 - Post action on the receipt detail view, generating and sending an `Idempotency-Key`.
 - Disabled state while in flight; no double submission.
@@ -1161,9 +1163,37 @@ is the corruption this transaction exists to prevent.
 
 **Modules.** `frontend/app/pages/goods-receipts/[id].vue`, `frontend/app/composables/usePosting.ts`.
 
+**The key identifies an attempt, not a request.** `postingKey(receiptId, version)` memoises a
+nonce per document-and-version, so a retry after a timeout **replays** while a genuinely new
+attempt on a changed document gets a new key. Generating one per request would make every retry a
+new command — no idempotency at all, while looking switched on.
+
+**Double submission is closed three times over**, and deliberately so: the handler returns early
+while `isPending`, the button is disabled, and the server holds a row lock. The UI guards are not
+redundant decoration — a control that fires a request it knows will fail teaches users to
+distrust it.
+
+**Distinct messages, because the user's next action differs.** `version_conflict` and
+`idempotency_conflict` raise the reload-and-retry banner; anything else states what the server
+said. An empty document does not produce a message at all — the button is simply disabled,
+because a control that cannot work should not invite the click.
+
+**Scope note.** `backend/scripts/count_movements.py` was added. "A double click produces one
+movement" is a claim about the **database**, and the browser has no way to observe it until the
+stock-balance endpoint exists in Phase 6. It is a script rather than an endpoint for the same
+reason as `mark_receipt_posted.py`: test-only capabilities that ship are backdoors.
+
+**Verification (2026-08-30).** `pnpm lint`, `pnpm typecheck`, `pnpm build` clean. Playwright:
+**4 passed** for this issue, **24 passed** across the whole E2E suite. Both acceptance criteria
+are tested as written — a `dblclick` on the post button leaves `batches=1 movements=1` in the
+database, and a posted document renders with the post button, save button, line editor and
+supplier picker all absent.
+
 ---
 
 ### Issue 22 — `P5: Posting integration tests`
+
+**Status:** ✅ Done (2026-08-30)
 
 **Scope.**
 - Post → assert batch, movement, audit row, and status transition.
@@ -1174,7 +1204,45 @@ is the corruption this transaction exists to prevent.
 **Acceptance criteria.** Each test fails when its guard is removed — verified deliberately, so
 the tests are known to be load-bearing rather than merely green.
 
-**Modules.** `backend/tests/test_posting.py`.
+**Modules.** `backend/tests/test_posting.py`, `backend/tests/test_posting_concurrency.py`.
+
+**The matrix.** The sequential cases live in `test_posting.py` (15 tests); the four that need
+genuinely parallel transactions live in `test_posting_concurrency.py`, committing for real on
+independent connections:
+
+| Case | Result |
+|---|---|
+| Two concurrent posts, **different** keys | one `posted`, one `receipt_not_draft`; **1 batch, 1 movement, 1 audit row** |
+| Two concurrent posts, **same** key | one `posted`, one `replayed` with a byte-identical body; **1 batch, 1 movement** |
+| A different key on an already-posted document | `receipt_not_draft`, still one movement |
+| Either way | the document ends `posted` at version **2**, not 3 — the loser wrote nothing |
+
+**The acceptance criterion was carried out, not assumed.** `.with_for_update()` was commented
+out and the suite re-run: `test_two_concurrent_posts_with_different_keys_leave_one_movement`
+failed, and it failed *informatively* — `StaleDataError: UPDATE ... expected to update 1 row(s);
+0 were matched`. That is `version_id_col` catching the lost update at flush time, exactly as the
+code comment predicts, and it is why the lock earns its place: without it the loser does all its
+work before discovering it lost.
+
+**Two defects this exercise exposed:**
+
+1. **An escaping `StaleDataError` would have been a 500.** The lock makes it unreachable in
+   practice, but "unreachable in practice" is not a contract. The endpoint now maps it to
+   `version_conflict`, so a race the client loses is a 409 either way.
+2. **Three tests asserted *global* row counts.** They passed only while no other suite committed
+   anything — an assumption the concurrency tests immediately broke. A test that depends on the
+   rest of the database being empty is testing the suite rather than the code; every count is now
+   scoped to the organization under test.
+
+**Cleanup had to say out loud what the schema enforces.** Movements and audit rows are
+append-only, so teardown disables the trigger for the duration — a table-owner operation confined
+to the test suite. And deleting the organization is not enough: `ON DELETE RESTRICT` fires even
+when the referencing row is being removed by the same cascade, so a receipt still pointing at its
+warehouse blocks the warehouse's removal. The purge walks the dependency order explicitly.
+
+**Verification (2026-08-30).** **214 backend tests passed**, three consecutive runs, no
+cross-test leakage. `ruff` / `ruff format --check` clean (62 files) · `pyright` 0 errors, strict ·
+`alembic check` clean · Playwright **24 passed**.
 
 ---
 
@@ -1271,7 +1339,7 @@ commands produced the evidence, and every known limitation.
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | ✅ 4 of 4 done |
-| 5 | Posting — Idempotency & Atomicity | 18–22 | 3 of 5 done |
+| 5 | Posting — Idempotency & Atomicity | 18–22 | ✅ 5 of 5 done |
 | 6 | Stock Balance Query | 23–24 | Not started |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |
 

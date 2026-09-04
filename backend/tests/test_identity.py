@@ -172,7 +172,7 @@ def test_deleting_a_user_removes_their_memberships(db_session: Session) -> None:
     db_session.delete(user)
     db_session.flush()
 
-    assert db_session.query(Membership).count() == 0
+    assert db_session.query(Membership).filter(Membership.user_id == user.id).count() == 0
 
 
 # --------------------------------------------------------------------------- #

@@ -10,9 +10,10 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.api.deps import CurrentOrganization, CurrentUser, SessionDep
-from app.core.errors import documented
+from app.core.errors import VersionConflictError, documented
 from app.core.idempotency import require_idempotency_key, run_idempotent
 from app.models.goods_receipt import GoodsReceipt
 from app.models.identity import Organization, User
@@ -160,15 +161,24 @@ def post_receipt(
     body recorded at the time — the stored response is the answer, not whatever
     the document looks like now.
     """
-    outcome = run_idempotent(
-        db,
-        organization=organization,
-        endpoint="POST /api/v1/goods-receipts/{id}/post",
-        key=idempotency_key,
-        payload=posting.posting_payload(receipt_id, payload.version),
-        execute=lambda: _execute_post(db, organization, user, receipt_id, payload.version),
-    )
-    db.commit()
+    try:
+        outcome = run_idempotent(
+            db,
+            organization=organization,
+            endpoint="POST /api/v1/goods-receipts/{id}/post",
+            key=idempotency_key,
+            payload=posting.posting_payload(receipt_id, payload.version),
+            execute=lambda: _execute_post(db, organization, user, receipt_id, payload.version),
+        )
+        db.commit()
+    except StaleDataError as exc:
+        # Defence in depth. `SELECT ... FOR UPDATE` should mean a concurrent
+        # poster reads `posted` and gets a clean 409 long before this fires — but
+        # if it ever does, the caller deserves 409 rather than a 500 for what is
+        # simply a race it lost.
+        db.rollback()
+        raise VersionConflictError from exc
+
     return JSONResponse(status_code=outcome.status_code, content=outcome.body)
 
 
