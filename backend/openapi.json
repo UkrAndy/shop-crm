@@ -759,6 +759,87 @@
         "title": "SetActiveOrganizationRequest",
         "type": "object"
       },
+      "StockBalancePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StockBalanceRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "StockBalancePage",
+        "type": "object"
+      },
+      "StockBalanceRow": {
+        "properties": {
+          "last_movement_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Movement At"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity_balance": {
+            "title": "Quantity Balance",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "warehouse_id",
+          "quantity_balance",
+          "last_movement_at"
+        ],
+        "title": "StockBalanceRow",
+        "type": "object"
+      },
       "UserPublic": {
         "description": "Everything about a user the API is willing to disclose.\n\nThe stored credential is absent by construction rather than by filtering:\nthere is no code path that could include it. `test_identity.py` asserts the\nfield name appears nowhere in the OpenAPI document — including in prose like\nthis one — so the guard cannot be defeated by a description.",
         "properties": {
@@ -1947,6 +2028,117 @@
         "summary": "Update Product",
         "tags": [
           "products"
+        ]
+      }
+    },
+    "/api/v1/stock-balance": {
+      "get": {
+        "description": "Balances for the active organization.\n\nWith `product_id`, exactly one row — **zero** if nothing has ever moved,\nbecause an empty shelf is a valid answer and a missing product is a\ndifferent question (403, since the lookup is scoped).",
+        "operationId": "read_stock_balance_api_v1_stock_balance_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "warehouse_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Warehouse Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockBalancePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Outside the caller's organization scope"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Read Stock Balance",
+        "tags": [
+          "stock"
         ]
       }
     }

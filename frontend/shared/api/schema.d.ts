@@ -276,6 +276,30 @@ export interface paths {
         patch: operations["update_product_api_v1_products__product_id__patch"];
         trace?: never;
     };
+    "/api/v1/stock-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Stock Balance
+         * @description Balances for the active organization.
+         *
+         *     With `product_id`, exactly one row — **zero** if nothing has ever moved,
+         *     because an empty shelf is a valid answer and a missing product is a
+         *     different question (403, since the lookup is scoped).
+         */
+        get: operations["read_stock_balance_api_v1_stock_balance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -605,6 +629,33 @@ export interface components {
              * Format: uuid
              */
             organization_id: string;
+        };
+        /** StockBalancePage */
+        StockBalancePage: {
+            /** Items */
+            items: components["schemas"]["StockBalanceRow"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /** StockBalanceRow */
+        StockBalanceRow: {
+            /** Last Movement At */
+            last_movement_at: string | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Quantity Balance */
+            quantity_balance: number;
+            /** Warehouse Id */
+            warehouse_id: string | null;
         };
         /**
          * UserPublic
@@ -1531,6 +1582,58 @@ export interface operations {
             };
             /** @description Conflicts with the current state */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    read_stock_balance_api_v1_stock_balance_get: {
+        parameters: {
+            query?: {
+                product_id?: string | null;
+                warehouse_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockBalancePage"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Outside the caller's organization scope */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
