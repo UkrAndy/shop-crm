@@ -32,6 +32,9 @@ export type GoodsReceiptUpdate = Schemas['GoodsReceiptUpdate']
 export type GoodsReceiptLineInput = Schemas['GoodsReceiptLineInput']
 export type GoodsReceiptLinePublic = Schemas['GoodsReceiptLinePublic']
 
+export type StockBalanceRow = Schemas['StockBalanceRow']
+export type StockBalancePage = Schemas['StockBalancePage']
+
 /** The single envelope every 401/403/404/409/422 uses. */
 export type ApiErrorResponse = Schemas['ErrorResponse']
 export type ApiFieldError = Schemas['FieldError']

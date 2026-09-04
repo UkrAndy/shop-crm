@@ -1252,6 +1252,8 @@ Goal: prove balance is derived from movements, never stored.
 
 ### Issue 23 — `P6: Stock balance aggregation endpoint`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Scope.**
 - `GET /api/v1/stock-balance?product_id=&warehouse_id=` returning `product_id`,
   `warehouse_id`, `quantity_balance`, `last_movement_date`.
@@ -1268,9 +1270,34 @@ Goal: prove balance is derived from movements, never stored.
 
 **Tests.** Single receipt; multiple receipts aggregating; zero-movement product.
 
+**`SUM(quantity_delta)`, and nothing else.** The architectural claim the whole slice was built to
+support, finally exercised: three deliveries of one product are three movements and one number,
+computed on demand. There is no counter anywhere that could have drifted from them — and a test
+reads `services/stock.py` itself to assert the query path never grew one, because reading
+`remaining_quantity` here would be the same shortcut wearing a different hat.
+
+**Zero, not 404.** A product that has never moved returns a balance of `0` with a null
+`last_movement_at`. "Nothing has arrived yet" is a valid and informative state; collapsing it
+into "not found" would make an empty shelf indistinguishable from a typo. A product outside the
+organization is 403 — the lookup is scoped, so the server never learns whether it exists
+elsewhere.
+
+**Without a filter, only what has moved.** A catalog-wide list of zeros is noise; the unfiltered
+view answers "what is in the warehouse". The product name is resolved in the same query rather
+than per row, which is how a list page quietly becomes slow.
+
+`ix_stock_movements_scope` — added in Issue 18 for exactly this — covers the `WHERE` clause.
+
+**Verification (2026-08-30).** Test-first; **10 passed** for this issue and **224** across the
+suite. `ruff` / `ruff format --check` clean (66 files) · `pyright` 0 errors, strict ·
+`alembic check` clean. Cross-tenant isolation is tested by committing another organization's
+movement of 999 units and asserting the caller's list still reads `[10]`.
+
 ---
 
 ### Issue 24 — `P6: Stock balance UI and end-to-end verification`
+
+**Status:** ✅ Done (2026-08-30)
 
 **Scope.**
 - `/stock-balance` page: product/warehouse filter, table of Product | Warehouse | Quantity |
@@ -1280,6 +1307,20 @@ Goal: prove balance is derived from movements, never stored.
 
 **Acceptance criteria.** The E2E test traverses UI → API → domain → database → UI and is the
 executable proof of the PRD Definition of Done.
+
+**Done, and it is the proof.** `tests/e2e/tracer-bullet.spec.ts` walks the entire slice through
+the browser without touching the API directly: log in → the sole organization resolves itself →
+create a product → draft a receipt with a running total of `150.00` → post it → the balance reads
+**6**. Then a second delivery of 4 is drafted and posted, and the balance reads **10** — proving
+the number *aggregates* rather than being overwritten, which is the difference between summing
+movements and storing a counter.
+
+A second test covers the other half of Issue 23's contract in the UI: a product that never
+arrived shows **0** and no error.
+
+**Verification (2026-08-30).** `pnpm lint`, `pnpm typecheck`, `pnpm build` clean.
+Playwright: **2 passed** for this issue, **26 passed** across the whole E2E suite
+(10 auth + 5 products + 5 receipts + 4 posting + 2 tracer bullet).
 
 **Modules.** `frontend/app/pages/stock-balance.vue`, `frontend/tests/e2e/tracer-bullet.spec.ts`.
 
@@ -1340,7 +1381,7 @@ commands produced the evidence, and every known limitation.
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | ✅ 4 of 4 done |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | ✅ 5 of 5 done |
-| 6 | Stock Balance Query | 23–24 | Not started |
+| 6 | Stock Balance Query | 23–24 | ✅ 2 of 2 done |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |
 
 **26 issues across 7 milestones.**
