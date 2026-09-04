@@ -1,6 +1,7 @@
 # Backlog: Tracer Bullet — Goods Receipt Vertical Slice
 
-**Status:** Active
+**Status:** ✅ Complete — all 26 issues done, 2026-08-30
+**Report:** [`../completed/report-tracer-bullet.md`](../completed/report-tracer-bullet.md)
 **Date:** 2026-08-30
 **Related:** [`plan-tracer-bullet.md`](plan-tracer-bullet.md), [`../../product-specs/prd-tracer-bullet-goods-receipt.md`](../../product-specs/prd-tracer-bullet-goods-receipt.md), [`../../research/research-core-architecture.md`](../../research/research-core-architecture.md)
 
@@ -1332,6 +1333,8 @@ Goal: verify behaviour under contention rather than assuming it.
 
 ### Issue 25 — `P7: Real-PostgreSQL test fixture and concurrency helper`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** Concurrency tests are meaningless against a mocked or in-memory database. Research
 specifies Testcontainers; if Docker-in-CI proves unreliable, a service-container fixture with
 per-test schema isolation is the fallback — the fallback must be a documented decision, not a
@@ -1347,11 +1350,41 @@ silent downgrade.
   not assumed.
 - Suite is repeatable: no cross-test state leakage across 3 consecutive runs.
 
-**Modules.** `backend/tests/conftest.py`, `backend/tests/support/concurrency.py`.
+**Modules.** `backend/tests/conftest.py`, `backend/tests/support/concurrency.py`,
+`backend/tests/support/scenes.py`.
+
+**The Testcontainers decision, documented rather than downgraded silently.** Research names
+Testcontainers and permits a service-container fallback *provided the choice is written down*.
+Postgres comes from `docker-compose.yml` locally and a GitHub Actions service container in CI —
+one `postgres:17-alpine`, pinned identically in both places. It is simpler than a second container
+runtime inside the test process, starts once per session instead of per run, and needs no Docker
+socket access from pytest. Isolation is per test: a rolled-back transaction by default, and a
+throwaway organization for the suites that must commit.
+
+**The overlap is proven, not assumed.** `test_concurrency_harness.py` makes the winning poster
+sleep 0.75 s while holding the row lock and asserts that **both** workers took at least that long
+— the loser because it was blocked on `SELECT … FOR UPDATE`. A concurrency suite that cannot
+demonstrate this is a set of sequential tests with threads in them, and it would pass whether or
+not the lock existed.
+
+**`run_in_parallel` captures rather than propagates.** In a race one worker failing *is* the
+expected result; a helper that let the exception escape would fail the test for the very
+behaviour it exists to observe. It also records durations, because "did these overlap?" is a
+question about time that cannot be answered by inspection.
+
+**Duplication removed.** The committed-scene fixture and the purge routine were living in
+`test_posting_concurrency.py`; both now sit in `tests/support/scenes.py` and are shared by three
+suites.
+
+**Verification (2026-08-30).** **3 passed** for this issue, **232** across the suite, stable over
+three consecutive runs — which is the repeatability criterion. `ruff` / `ruff format --check`
+clean (71 files) · `pyright` 0 errors, strict.
 
 ---
 
 ### Issue 26 — `P7: Concurrency and error matrix, plus phase report`
+
+**Status:** ✅ Done (2026-08-30)
 
 **Scope.** Implement the matrix from the plan (§Phase 7) and research §6.7:
 - concurrent posts of *different* receipts for the same product → both succeed, totals aggregate;
@@ -1368,7 +1401,30 @@ commands produced the evidence, and every known limitation.
 - All matrix cases pass; none is skipped or marked xfail without a written justification.
 - The report states explicitly which checks could not be run, per `AGENTS.md` §12.
 
-**Modules.** `backend/tests/test_concurrency.py`, `docs/exec-plans/completed/report-tracer-bullet.md`.
+**Modules.** `backend/tests/test_concurrency_matrix.py`,
+`docs/exec-plans/completed/report-tracer-bullet.md`.
+
+**The matrix is complete for the slice, and the gaps are named.** Research §6.7 lists ten cases;
+six are in scope and all six pass. The other four — two sellers competing for the final unit,
+negative-stock policy, simultaneous reservations, IMEI allocation — are sales-side, and the PRD
+puts sales out of scope. **Nothing is skipped or marked `xfail`:** those four have no code to
+test, which the report states rather than papering over.
+
+New here, since the rest was already covered: concurrent posts of **different** receipts for the
+same product both succeed and the balance aggregates to 35 — the lock must serialise posts of the
+*same* document without serialising unrelated ones, or correctness would have been bought with
+throughput nobody agreed to lose. Plus concurrent draft edits at the same expected version (one
+saves, one 409), and a stale read followed by a post and a re-query.
+
+**The report is `docs/exec-plans/completed/report-tracer-bullet.md`.** It maps every Definition of
+Done item to the test that proves it, lists the exact commands and their results, records the six
+decisions that departed from the plan, and — per `AGENTS.md` §12 — devotes a section to what was
+**not** checked: no load testing, Chromium only, no accessibility audit, no rate limiting on
+login, nothing merged to `main`, the 26 issues never published, and the fact that a tenant with
+posted history can no longer be deleted at all.
+
+**Verification (2026-08-30).** **5 passed** for this issue, **232** across the suite over three
+consecutive runs. Full gate results are tabulated in the report.
 
 ---
 
@@ -1382,7 +1438,7 @@ commands produced the evidence, and every known limitation.
 | 4 | Goods Receipt Draft & Edit | 14–17 | ✅ 4 of 4 done |
 | 5 | Posting — Idempotency & Atomicity | 18–22 | ✅ 5 of 5 done |
 | 6 | Stock Balance Query | 23–24 | ✅ 2 of 2 done |
-| 7 | Concurrency & Test Matrix | 25–26 | Not started |
+| 7 | Concurrency & Test Matrix | 25–26 | ✅ 2 of 2 done |
 
 **26 issues across 7 milestones.**
 
@@ -1395,85 +1451,48 @@ commands produced the evidence, and every known limitation.
 | No CI run on the phase branch | Issue 5 acceptance criterion *"workflow passes"* | — | ✅ Resolved — run 33318800111 green on `3c58339` |
 | `gh auth login` is interactive (browser) | Publishing these 26 issues as GitHub milestones/issues; opening the Phase 1 PR from the CLI | User | ❌ Open — `gh` reports no logged-in host |
 
-## Resume here — state as of 2026-08-30, end of Phase 5
+## Final state — 2026-08-30
+
+**All 26 issues across all 7 milestones are done.** The completion report —
+[`../completed/report-tracer-bullet.md`](../completed/report-tracer-bullet.md) — maps every
+Definition of Done item to the test that proves it, and states what was *not* checked.
 
 **Branches.** `origin/main` is still at `f5e732c` — documents only. Each phase branch is stacked
-on the previous one, so the newest contains all the others:
+on the previous one, so `phase-7` contains everything:
 
-| Branch | Contains | CI |
-|---|---|---|
-| `phase-1` | Milestone 1, issues 1–5 | green |
-| `phase-2` | Milestone 2, issues 6–9 | green |
-| `phase-3` | Milestone 3, issues 10–13 | green |
-| `phase-4` | Milestone 4, issues 14–17 | green |
-| `phase-5` | Milestone 5, issues 18–22 — **contains phases 1–4** | green (3 jobs) |
-
-**Done: Milestones 1–5, issues 1–22.** Per-issue verification evidence is recorded under each
-issue above rather than summarised here.
+| Branch | Milestone | Issues | CI |
+|---|---|---|---|
+| `phase-1` | Repository scaffold & baseline | 1–5 | green |
+| `phase-2` | Identity & organizations | 6–9 | green |
+| `phase-3` | Catalog (products) | 10–13 | green |
+| `phase-4` | Goods receipt draft & edit | 14–17 | green |
+| `phase-5` | Posting — idempotency & atomicity | 18–22 | green |
+| `phase-6` | Stock balance query | 23–24 | green |
+| `phase-7` | Concurrency & test matrix | 25–26 | green |
 
 | Gate | Result |
 |---|---|
-| `uv run ruff check .` / `ruff format --check .` | clean, 62 files |
+| `uv run ruff check .` / `ruff format --check .` | clean, 71 files |
 | `uv run pyright` | 0 errors, strict |
-| `uv run pytest` | **214 passed**, stable over 3 consecutive runs |
-| `uv run alembic upgrade head` + `alembic check` | clean; 7 revisions; downgrade proven each time |
+| `uv run pytest` | **232 passed**, stable over 3 consecutive runs |
+| `uv run alembic upgrade head` + `alembic check` | clean; 7 revisions; each downgraded and reapplied |
 | `pnpm api:check` | contract and generated types reproduce byte-for-byte |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | clean / 0 errors / build complete |
-| `pnpm test:e2e` | **24 passed** (10 auth + 5 products + 5 receipts + 4 posting) |
-| GitHub Actions | [run 33843902303](https://github.com/UkrAndy/shop-crm/actions/runs/33843902303) — all three jobs green |
+| `pnpm test:e2e` | **26 passed**, Chromium, live stack |
+| GitHub Actions | backend, frontend and e2e green on every phase branch |
 
-**Working software today.** Log in · pick an organization · manage products with optimistic
-concurrency · create a supplier · draft a goods receipt with a running total · **post it**, which
-creates a batch and a movement per line plus an audit record in one transaction, is idempotent
-under a replayed key, and refuses a second post. `backend/scripts/seed_dev.py` provides
-`owner@example.com` and `multi@example.com`, both with password `seed-password-123`.
+**Working software.** Log in · pick an organization · manage products with optimistic concurrency
+· create suppliers · draft a goods receipt with a running total · post it atomically and
+idempotently · see a stock balance aggregated from movements.
+`backend/scripts/seed_dev.py` provides `owner@example.com` and `multi@example.com`, both with
+password `seed-password-123`.
 
-**What is left.** Milestone 6 (issues 23–24, stock balance query and the end-to-end tracer-bullet
-proof) and Milestone 7 (issues 25–26, the full concurrency matrix and the phase report). The
-balance endpoint is the last piece of the PRD's Definition of Done: every movement it needs
-already exists and is indexed for exactly that aggregation.
+**What is left, and why** — the full list is §6 of the report. The two that need a person:
 
-**Environment:** `uv` 0.12.7 (at `%LOCALAPPDATA%\Programs\Python\Python314\Scripts\uv.exe`,
-not on the default PATH), Python pinned to **3.14** by `backend/.python-version`,
-`pnpm` 11.24.0, Node 24.19.0, `gh` 2.98.0 (unauthenticated), Docker Desktop 4.88.1 /
-Engine 29.7.2, Playwright 1.62.1 with Chromium only.
+1. **Merge into `main`.** `gh` is unauthenticated on this host, so this is a browser action.
+   Merging `phase-7` alone is sufficient: https://github.com/UkrAndy/shop-crm/pull/new/phase-7
+2. **Publish the 26 issues to GitHub**, if issue tracking is still wanted — `gh auth login` in a
+   **new** terminal first.
 
-**Constraints established that later work must not break:**
-- **The API must be same-site with the frontend.** Hosts are part of a *site*; ports are not.
-  See `design-auth.md` §"Deployment constraint".
-- **Anything driving an SSR page must wait for hydration** — `app.vue` sets `data-hydrated`.
-  Scope PrimeVue option lookups to the **visible** overlay.
-- **New models must be registered in `app/models/__init__.py`**, or `alembic check` will not see
-  them and CI will pass on a schema that does not exist.
-- **`openapi.json` and `schema.d.ts` are generated and committed**, and nothing in that document
-  may depend on the Python version.
-- **Optimistic concurrency is `version_id_col`.** A collection change does **not** bump the
-  parent's version — editing child rows must flag the parent dirty.
-- **`now()` is the transaction timestamp.** Rows written together share it exactly, so it can
-  never order them. Line order is a stored `position`.
-- **`stock_movements` and `audit_log` are append-only at the database level.** A trigger refuses
-  `UPDATE` and `DELETE`, so removing an organization with posted history fails — tenant deletion
-  is a conscious operation. Test cleanup disables the trigger explicitly.
-- **`ON DELETE RESTRICT` fires even inside a cascade** that is removing the referencing row, so
-  teardown must walk the dependency order rather than deleting the organization and hoping.
-- **Never assert a global row count in a test.** The concurrency suites commit real rows; a test
-  that needs the rest of the database empty is testing the suite, not the code.
-- **Test-only capabilities live in `backend/scripts/`, never as endpoints.** A route that posts a
-  document, or flips its status, is a backdoor around the posting transaction.
-
-**Supply-chain notes carried forward.** `uv` has neither an Authenticode signature nor a
-PEP 740 attestation. `fastapi[standard]` pulls `sentry-sdk` transitively — inert without a
-DSN, but unaudited. On the npm side, `primevue` and `@primeuix/themes` have no SLSA
-attestation and no `repository` field; every other dependency added since does.
-`pnpm install` reports `Lockfile passes supply-chain policies`.
-
-**Next, in this order:**
-1. Merge into `main`. `gh` is unauthenticated, so this is a browser action; merging `phase-5`
-   alone is sufficient because it already contains phases 1–4:
-   https://github.com/UkrAndy/shop-crm/pull/new/phase-5
-2. `gh auth login` in a **new** terminal, then publish these 26 issues as milestones/issues
-   if GitHub tracking is still wanted.
-3. Start Milestone 6 at **Issue 23** — `GET /api/v1/stock-balance`. Note the issue's own
-   instruction: a product with no movements returns a **zero balance, not 404** — absence of
-   movement is a valid state, distinct from a missing product. `ix_stock_movements_scope` already
-   covers the aggregation.
+**Constraints the next phase must not break** are listed in §7 of the report. Each was discovered
+the hard way, and each would be expensive to rediscover.

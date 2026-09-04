@@ -5,12 +5,19 @@ PRRO integration (Ukrainian fiscal receipt registrar).
 
 ## Project Status
 
-- **Phase 1 — Repository Scaffold & Baseline:** complete (issues 1–5).
-- **Next:** Phase 2 — Identity & Organizations.
-- **First Tracer Bullet:** Organization → Product → Goods Receipt → Batch → Stock Movement → Balance.
+**The first Tracer Bullet is complete** — Organization → Product → Goods Receipt → Batch →
+Stock Movement → Balance, working end to end through the browser. All 26 issues across 7
+milestones are done.
 
-Progress is tracked issue by issue in
-[`docs/exec-plans/active/backlog-tracer-bullet.md`](docs/exec-plans/active/backlog-tracer-bullet.md).
+- **Completion report:** [`docs/exec-plans/completed/report-tracer-bullet.md`](docs/exec-plans/completed/report-tracer-bullet.md)
+  — what was verified, with which commands, and what was **not** checked.
+- **Issue-by-issue detail:** [`docs/exec-plans/active/backlog-tracer-bullet.md`](docs/exec-plans/active/backlog-tracer-bullet.md)
+
+232 backend tests, 26 end-to-end tests, strict typechecking, and a CI pipeline that fails on
+model/migration drift and on API contract drift.
+
+**Next:** sales and outbound stock — at which point the remaining four concurrency cases from
+research §6.7 stop being out of scope.
 
 ## Documentation
 
@@ -19,6 +26,7 @@ Progress is tracked issue by issue in
 - **First Tracer Bullet PRD:** [`docs/product-specs/prd-tracer-bullet-goods-receipt.md`](docs/product-specs/prd-tracer-bullet-goods-receipt.md)
 - **Implementation plan:** [`docs/exec-plans/active/plan-tracer-bullet.md`](docs/exec-plans/active/plan-tracer-bullet.md)
 - **Issue backlog:** [`docs/exec-plans/active/backlog-tracer-bullet.md`](docs/exec-plans/active/backlog-tracer-bullet.md)
+- **Completion report:** [`docs/exec-plans/completed/report-tracer-bullet.md`](docs/exec-plans/completed/report-tracer-bullet.md)
 - **Development workflow:** [`AGENTS.md`](AGENTS.md)
 
 ## Technology Stack
@@ -163,7 +171,7 @@ Addresses use `example.com` on purpose: Pydantic's `EmailStr` rejects special-us
 │   │   ├── api/v1/         (routers)
 │   │   ├── core/           (config, db, security)
 │   │   └── models/         (SQLAlchemy models — registry for Alembic)
-│   ├── migrations/         (Alembic; revisions land from Phase 2)
+│   ├── migrations/         (Alembic; 7 revisions)
 │   └── tests/
 ├── frontend/               (Nuxt 4, SSR)
 │   └── app/                (pages, components, plugins, stores)
@@ -171,7 +179,7 @@ Addresses use `example.com` on purpose: Pydantic's `EmailStr` rejects special-us
 │   ├── product-specs/      (PRDs)
 │   ├── design-docs/        (technical designs)
 │   ├── research/           (architecture & spike results)
-│   └── exec-plans/         (plan, backlog, phase reports)
+│   └── exec-plans/         (plan, backlog, completion report)
 ├── .github/workflows/      (CI)
 ├── docker-compose.yml      (local PostgreSQL)
 ├── AGENTS.md               (development workflow rules)
@@ -205,13 +213,13 @@ application settings, never from `alembic.ini`.
 
 ## Roadmap (Phases)
 
-1. **Repository scaffold & baseline** — done
-2. **Identity & organizations** — auth, org scope, active org selection
-3. **Catalog (products)** — CRUD with optimistic concurrency
-4. **Goods receipt draft & edit** — document header and lines
-5. **Posting** — idempotency, atomic batch + movement + audit
-6. **Stock balance query** — aggregation from movements
-7. **Concurrency & integration test matrix**
+1. **Repository scaffold & baseline** — ✅ done
+2. **Identity & organizations** — ✅ done
+3. **Catalog (products)** — ✅ done
+4. **Goods receipt draft & edit** — ✅ done
+5. **Posting** — ✅ done (idempotent, atomic batch + movement + audit)
+6. **Stock balance query** — ✅ done (aggregated from movements)
+7. **Concurrency & integration test matrix** — ✅ done
 
 Later modules (sales, cash, PRRO, offline, multi-currency, POS) are explicitly out of
 scope for the Tracer Bullet.
