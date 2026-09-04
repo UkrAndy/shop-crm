@@ -1085,6 +1085,8 @@ mechanism is exercised in Issue 22, where a real command exists to run against i
 
 ### Issue 20 — `P5: Post goods receipt — atomic transaction`
 
+**Status:** ✅ Done (2026-08-30)
+
 **Context.** The single most correctness-sensitive endpoint in the slice. Everything happens in
 one transaction or nothing does.
 
@@ -1106,6 +1108,43 @@ one transaction or nothing does.
 **Tests.** Covered by Issue 22, plus the injected-failure rollback test here.
 
 **Out of scope.** Unposting/cancellation (explicitly outside the PRD).
+
+**Deviation from the plan, and it matters.** The plan says "create batch from receipt (copy
+price, sum qty)" and "movement qty_delta = sum of line quantities". That holds only for a
+single-product delivery. A batch is a quantity of **one** product at **one** price; summing
+across lines would merge different goods into one batch and discard the price each arrived at —
+which is precisely what FIFO cost depends on later. The implementation creates **one batch and
+one movement per line**, and a test with two products at two prices pins it.
+
+Two lines naming the same product at the same price still become two batches: they arrived as
+two entries on the document, and keeping them separate preserves the trace back to it.
+
+**The order of operations is the design.**
+
+1. `SELECT … FOR UPDATE` on the receipt. This is what makes two simultaneous posts sequential —
+   the second waits, and by the time it proceeds the first has flipped the status, so it reads
+   `posted` and refuses. Without the lock both would read `draft` and both would post.
+   `version_id_col` would still catch it at flush, but only after the loser had done all its
+   work; the lock is cheaper and the error is clearer.
+2. Every refusal — not-draft, stale version, empty document — happens **before the first write**,
+   so a rejected post provably has not touched a row.
+3. Batches, movements, status, audit. Nothing in `posting.py` commits; the router owns the
+   transaction, so the idempotency reservation and the work commit together or roll back
+   together.
+
+**Status codes:** `empty_document` is **422**, not 409 — the document's *state* is fine, its
+*content* is not, which is the line research §555 draws. A second post with a different key is
+**409 `receipt_not_draft`**; with the *same* key it is a replay and returns the stored body.
+
+**Verification (2026-08-30).** Test-first; **15 passed** for this issue, **210** across the
+suite. `ruff` / `ruff format --check` clean (60 files) · `pyright` 0 errors, strict ·
+`alembic check` clean · contract regenerated, frontend typecheck and lint clean against it.
+
+Every acceptance criterion is tested as written, and the hardest one directly: `_record_movement`
+is monkeypatched to raise **after** the batches exist in the session, and the assertions are that
+zero batches, zero movements and zero audit rows survive, and that the document is still a
+`draft` at its original version. A partial post — stock recorded with no movement to explain it —
+is the corruption this transaction exists to prevent.
 
 ---
 
@@ -1232,7 +1271,7 @@ commands produced the evidence, and every known limitation.
 | 2 | Identity & Organizations | 6–9 | ✅ 4 of 4 done |
 | 3 | Catalog (Products) | 10–13 | ✅ 4 of 4 done |
 | 4 | Goods Receipt Draft & Edit | 14–17 | ✅ 4 of 4 done |
-| 5 | Posting — Idempotency & Atomicity | 18–22 | 2 of 5 done |
+| 5 | Posting — Idempotency & Atomicity | 18–22 | 3 of 5 done |
 | 6 | Stock Balance Query | 23–24 | Not started |
 | 7 | Concurrency & Test Matrix | 25–26 | Not started |
 

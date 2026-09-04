@@ -230,6 +230,22 @@
         "title": "GoodsReceiptPage",
         "type": "object"
       },
+      "GoodsReceiptPostRequest": {
+        "additionalProperties": false,
+        "description": "The version the client believes it is posting.\n\nRequired, like every other version-guarded write: omitting it must not mean\n\"post whatever is there now\".",
+        "properties": {
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "GoodsReceiptPostRequest",
+        "type": "object"
+      },
       "GoodsReceiptPublic": {
         "properties": {
           "counterparty_id": {
@@ -1289,6 +1305,106 @@
           }
         },
         "summary": "Update Receipt",
+        "tags": [
+          "goods-receipts"
+        ]
+      }
+    },
+    "/api/v1/goods-receipts/{receipt_id}/post": {
+      "post": {
+        "description": "Turn a draft into stock: batch, movement, audit and status, all or nothing.\n\nThe command runs inside `run_idempotent`, which shares this request's\ntransaction. That is what makes a replay safe *and* a failure harmless: the\nreservation and the work commit together or roll back together.\n\nReturns a `JSONResponse` rather than a model, because a replay hands back the\nbody recorded at the time — the stored response is the answer, not whatever\nthe document looks like now.",
+        "operationId": "post_receipt_api_v1_goods_receipts__receipt_id__post_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoodsReceiptPostRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoodsReceiptPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Outside the caller's organization scope"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflicts with the current state"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Post Receipt",
         "tags": [
           "goods-receipts"
         ]

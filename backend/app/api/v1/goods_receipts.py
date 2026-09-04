@@ -1,28 +1,34 @@
-"""Goods receipt draft endpoints.
+"""Goods receipt endpoints: drafting, editing and posting.
 
-Posting lives in Issue 20; everything here refuses to touch a document that has
-already been posted.
+Draft edits refuse to touch a posted document; posting turns a draft into stock
+in one transaction.
 """
 
 import uuid
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentOrganization, CurrentUser, SessionDep
 from app.core.errors import documented
+from app.core.idempotency import require_idempotency_key, run_idempotent
 from app.models.goods_receipt import GoodsReceipt
+from app.models.identity import Organization, User
 from app.schemas.goods_receipt import (
     CounterpartyCreate,
     CounterpartyPublic,
     GoodsReceiptCreate,
     GoodsReceiptLinePublic,
     GoodsReceiptPage,
+    GoodsReceiptPostRequest,
     GoodsReceiptPublic,
     GoodsReceiptSummary,
     GoodsReceiptUpdate,
 )
 from app.services import goods_receipt as service
+from app.services import posting
 
 router = APIRouter(prefix="/goods-receipts", tags=["goods-receipts"])
 counterparties_router = APIRouter(prefix="/counterparties", tags=["counterparties"])
@@ -129,6 +135,54 @@ def update_receipt(
     """Edit a draft. A posted document answers 409 under any payload."""
     receipt = service.update_receipt(db, organization, receipt_id, payload)
     return _detail(db, receipt)
+
+
+@router.post(
+    "/{receipt_id}/post",
+    response_model=GoodsReceiptPublic,
+    responses=documented(401, 403, 409, 422),
+)
+def post_receipt(
+    receipt_id: uuid.UUID,
+    payload: GoodsReceiptPostRequest,
+    organization: CurrentOrganization,
+    user: CurrentUser,
+    db: SessionDep,
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+) -> JSONResponse:
+    """Turn a draft into stock: batch, movement, audit and status, all or nothing.
+
+    The command runs inside `run_idempotent`, which shares this request's
+    transaction. That is what makes a replay safe *and* a failure harmless: the
+    reservation and the work commit together or roll back together.
+
+    Returns a `JSONResponse` rather than a model, because a replay hands back the
+    body recorded at the time — the stored response is the answer, not whatever
+    the document looks like now.
+    """
+    outcome = run_idempotent(
+        db,
+        organization=organization,
+        endpoint="POST /api/v1/goods-receipts/{id}/post",
+        key=idempotency_key,
+        payload=posting.posting_payload(receipt_id, payload.version),
+        execute=lambda: _execute_post(db, organization, user, receipt_id, payload.version),
+    )
+    db.commit()
+    return JSONResponse(status_code=outcome.status_code, content=outcome.body)
+
+
+def _execute_post(
+    db: Session,
+    organization: Organization,
+    user: User,
+    receipt_id: uuid.UUID,
+    version: int,
+) -> tuple[int, dict[str, Any]]:
+    receipt = posting.post_receipt(db, organization, user, receipt_id, version)
+    # `mode="json"` so the stored body is exactly what the client receives, on
+    # the first call and on every replay.
+    return 200, _detail(db, receipt).model_dump(mode="json")
 
 
 @counterparties_router.get("", response_model=list[CounterpartyPublic], responses=_SCOPED)

@@ -57,6 +57,18 @@ class GoodsReceiptUpdate(BaseModel):
     lines: list[GoodsReceiptLineInput] | None = None
 
 
+class GoodsReceiptPostRequest(BaseModel):
+    """The version the client believes it is posting.
+
+    Required, like every other version-guarded write: omitting it must not mean
+    "post whatever is there now".
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: int = Field(ge=1)
+
+
 class GoodsReceiptLinePublic(BaseModel):
     id: UUID
     product_id: UUID

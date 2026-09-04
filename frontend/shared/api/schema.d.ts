@@ -124,6 +124,34 @@ export interface paths {
         patch: operations["update_receipt_api_v1_goods_receipts__receipt_id__patch"];
         trace?: never;
     };
+    "/api/v1/goods-receipts/{receipt_id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Receipt
+         * @description Turn a draft into stock: batch, movement, audit and status, all or nothing.
+         *
+         *     The command runs inside `run_idempotent`, which shares this request's
+         *     transaction. That is what makes a replay safe *and* a failure harmless: the
+         *     reservation and the work commit together or roll back together.
+         *
+         *     Returns a `JSONResponse` rather than a model, because a replay hands back the
+         *     body recorded at the time — the stored response is the answer, not whatever
+         *     the document looks like now.
+         */
+        post: operations["post_receipt_api_v1_goods_receipts__receipt_id__post_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/live": {
         parameters: {
             query?: never;
@@ -343,6 +371,17 @@ export interface components {
             offset: number;
             /** Total */
             total: number;
+        };
+        /**
+         * GoodsReceiptPostRequest
+         * @description The version the client believes it is posting.
+         *
+         *     Required, like every other version-guarded write: omitting it must not mean
+         *     "post whatever is there now".
+         */
+        GoodsReceiptPostRequest: {
+            /** Version */
+            version: number;
         };
         /** GoodsReceiptPublic */
         GoodsReceiptPublic: {
@@ -970,6 +1009,70 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["GoodsReceiptUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoodsReceiptPublic"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Outside the caller's organization scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    post_receipt_api_v1_goods_receipts__receipt_id__post_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoodsReceiptPostRequest"];
             };
         };
         responses: {
