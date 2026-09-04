@@ -1354,7 +1354,7 @@ commands produced the evidence, and every known limitation.
 | No CI run on the phase branch | Issue 5 acceptance criterion *"workflow passes"* | — | ✅ Resolved — run 33318800111 green on `3c58339` |
 | `gh auth login` is interactive (browser) | Publishing these 26 issues as GitHub milestones/issues; opening the Phase 1 PR from the CLI | User | ❌ Open — `gh` reports no logged-in host |
 
-## Resume here — state as of 2026-08-30, end of Phase 4
+## Resume here — state as of 2026-08-30, end of Phase 5
 
 **Branches.** `origin/main` is still at `f5e732c` — documents only. Each phase branch is stacked
 on the previous one, so the newest contains all the others:
@@ -1364,27 +1364,33 @@ on the previous one, so the newest contains all the others:
 | `phase-1` | Milestone 1, issues 1–5 | green |
 | `phase-2` | Milestone 2, issues 6–9 | green |
 | `phase-3` | Milestone 3, issues 10–13 | green |
-| `phase-4` | Milestone 4, issues 14–17 — **contains phases 1–3** | green (3 jobs) |
+| `phase-4` | Milestone 4, issues 14–17 | green |
+| `phase-5` | Milestone 5, issues 18–22 — **contains phases 1–4** | green (3 jobs) |
 
-**Done: Milestones 1–4, issues 1–17.** Per-issue verification evidence is recorded under each
+**Done: Milestones 1–5, issues 1–22.** Per-issue verification evidence is recorded under each
 issue above rather than summarised here.
 
 | Gate | Result |
 |---|---|
-| `uv run ruff check .` / `ruff format --check .` | clean, 51 files |
+| `uv run ruff check .` / `ruff format --check .` | clean, 62 files |
 | `uv run pyright` | 0 errors, strict |
-| `uv run pytest` | **162 passed**, stable over 3 consecutive runs |
-| `uv run alembic upgrade head` + `alembic check` | clean; 5 revisions; downgrade proven each time |
+| `uv run pytest` | **214 passed**, stable over 3 consecutive runs |
+| `uv run alembic upgrade head` + `alembic check` | clean; 7 revisions; downgrade proven each time |
 | `pnpm api:check` | contract and generated types reproduce byte-for-byte |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | clean / 0 errors / build complete |
-| `pnpm test:e2e` | **20 passed** (10 auth + 5 products + 5 receipts) |
-| GitHub Actions | [run 33327842632](https://github.com/UkrAndy/shop-crm/actions/runs/33327842632) — all three jobs green |
+| `pnpm test:e2e` | **24 passed** (10 auth + 5 products + 5 receipts + 4 posting) |
+| GitHub Actions | [run 33843902303](https://github.com/UkrAndy/shop-crm/actions/runs/33843902303) — all three jobs green |
 
-**Working software today.** Log in · pick an organization · browse, search, create and edit
-products with optimistic concurrency · create a supplier · create a goods receipt draft with
-multiple lines and a running total · reopen it after a reload unchanged · a posted document
-renders read-only. `backend/scripts/seed_dev.py` provides `owner@example.com` and
-`multi@example.com`, both with password `seed-password-123`.
+**Working software today.** Log in · pick an organization · manage products with optimistic
+concurrency · create a supplier · draft a goods receipt with a running total · **post it**, which
+creates a batch and a movement per line plus an audit record in one transaction, is idempotent
+under a replayed key, and refuses a second post. `backend/scripts/seed_dev.py` provides
+`owner@example.com` and `multi@example.com`, both with password `seed-password-123`.
+
+**What is left.** Milestone 6 (issues 23–24, stock balance query and the end-to-end tracer-bullet
+proof) and Milestone 7 (issues 25–26, the full concurrency matrix and the phase report). The
+balance endpoint is the last piece of the PRD's Definition of Done: every movement it needs
+already exists and is indexed for exactly that aggregation.
 
 **Environment:** `uv` 0.12.7 (at `%LOCALAPPDATA%\Programs\Python\Python314\Scripts\uv.exe`,
 not on the default PATH), Python pinned to **3.14** by `backend/.python-version`,
@@ -1394,22 +1400,25 @@ Engine 29.7.2, Playwright 1.62.1 with Chromium only.
 **Constraints established that later work must not break:**
 - **The API must be same-site with the frontend.** Hosts are part of a *site*; ports are not.
   See `design-auth.md` §"Deployment constraint".
-- **Anything driving an SSR page must wait for hydration** before typing — `app.vue` sets
-  `data-hydrated`. Scope PrimeVue option lookups to the **visible** overlay: the markup of
-  previously opened `Select`s stays in the DOM.
+- **Anything driving an SSR page must wait for hydration** — `app.vue` sets `data-hydrated`.
+  Scope PrimeVue option lookups to the **visible** overlay.
 - **New models must be registered in `app/models/__init__.py`**, or `alembic check` will not see
   them and CI will pass on a schema that does not exist.
-- **`openapi.json` and `schema.d.ts` are generated and committed** — `pnpm api:generate`, then
-  commit both. Nothing in that document may depend on the Python version.
-- **Optimistic concurrency is `version_id_col`.** Both the stale-client check and the
-  `StaleDataError` path are needed. **A collection change does not bump the parent's version** —
-  editing child rows must flag the parent dirty, or two users rewriting the same document both
-  win.
-- **`now()` is the transaction timestamp in PostgreSQL.** Rows written together share it exactly,
-  so it can never order them. Line order is a stored `position`.
+- **`openapi.json` and `schema.d.ts` are generated and committed**, and nothing in that document
+  may depend on the Python version.
+- **Optimistic concurrency is `version_id_col`.** A collection change does **not** bump the
+  parent's version — editing child rows must flag the parent dirty.
+- **`now()` is the transaction timestamp.** Rows written together share it exactly, so it can
+  never order them. Line order is a stored `position`.
+- **`stock_movements` and `audit_log` are append-only at the database level.** A trigger refuses
+  `UPDATE` and `DELETE`, so removing an organization with posted history fails — tenant deletion
+  is a conscious operation. Test cleanup disables the trigger explicitly.
+- **`ON DELETE RESTRICT` fires even inside a cascade** that is removing the referencing row, so
+  teardown must walk the dependency order rather than deleting the organization and hoping.
+- **Never assert a global row count in a test.** The concurrency suites commit real rows; a test
+  that needs the rest of the database empty is testing the suite, not the code.
 - **Test-only capabilities live in `backend/scripts/`, never as endpoints.** A route that posts a
-  document on request is a backdoor around the posting transaction; a debug flag guarding it just
-  ships the backdoor with the flag.
+  document, or flips its status, is a backdoor around the posting transaction.
 
 **Supply-chain notes carried forward.** `uv` has neither an Authenticode signature nor a
 PEP 740 attestation. `fastapi[standard]` pulls `sentry-sdk` transitively — inert without a
@@ -1418,14 +1427,12 @@ attestation and no `repository` field; every other dependency added since does.
 `pnpm install` reports `Lockfile passes supply-chain policies`.
 
 **Next, in this order:**
-1. Merge into `main`. `gh` is unauthenticated, so this is a browser action; merging `phase-4`
-   alone is sufficient because it already contains phases 1–3:
-   https://github.com/UkrAndy/shop-crm/pull/new/phase-4
+1. Merge into `main`. `gh` is unauthenticated, so this is a browser action; merging `phase-5`
+   alone is sufficient because it already contains phases 1–4:
+   https://github.com/UkrAndy/shop-crm/pull/new/phase-5
 2. `gh auth login` in a **new** terminal, then publish these 26 issues as milestones/issues
    if GitHub tracking is still wanted.
-3. Start Milestone 5 at **Issue 18** — batch, movement and audit models. Phase 5 is the
-   correctness core of the whole tracer bullet and the most demanding phase in the plan: the
-   posting command must create a batch, a movement and an audit record in **one** transaction,
-   be idempotent under a replayed `Idempotency-Key`, and survive concurrent posts. Issue 20's
-   note that an injected failure must leave *zero* batches and *zero* movements is the criterion
-   to design toward from the start, not to retrofit.
+3. Start Milestone 6 at **Issue 23** — `GET /api/v1/stock-balance`. Note the issue's own
+   instruction: a product with no movements returns a **zero balance, not 404** — absence of
+   movement is a valid state, distinct from a missing product. `ix_stock_movements_scope` already
+   covers the aggregation.
